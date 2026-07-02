@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { Card, CardContent } from '../ui/Card';
 import { api } from '../../services/api';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 
 export const RevenueChart = () => {
   const [trend, setTrend] = useState([]);
@@ -17,6 +17,31 @@ export const RevenueChart = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleExport = () => {
+    if (trend.length === 0) return;
+
+    const headers = Object.keys(trend[0]);
+    const csvRows = [headers.join(',')];
+
+    for (const row of trend) {
+      const values = headers.map(header => {
+        const val = row[header] !== null && row[header] !== undefined ? String(row[header]) : '';
+        return `"${val.replace(/"/g, '""')}"`;
+      });
+      csvRows.push(values.join(','));
+    }
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'order_trend.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <Card className="h-full">
       <CardContent className="p-6 h-full flex flex-col">
@@ -25,9 +50,20 @@ export const RevenueChart = () => {
             <h3 className="font-bold text-slate-800">Orders Trend</h3>
             <p className="text-xs text-slate-400 mt-0.5">Monthly bookings — live from database</p>
           </div>
-          <span className="text-xs bg-primary-50 text-primary-700 font-bold px-2 py-1 rounded-md">
-            Last 6 Months
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              disabled={loading || trend.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export as CSV"
+            >
+              <Download size={14} />
+              Export
+            </button>
+            <span className="text-xs bg-slate-50 text-slate-600 border border-slate-200 font-bold px-2 py-1.5 rounded-md">
+              Last 6 Months
+            </span>
+          </div>
         </div>
 
         {loading ? (

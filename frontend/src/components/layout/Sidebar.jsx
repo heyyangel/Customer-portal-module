@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   PlusCircle,
@@ -22,6 +22,7 @@ export const Sidebar = () => {
   const cartItems = useCartStore((state) => state.items);
 
   const { user } = useUserStore();
+  const location = useLocation();
 
   const menuItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -85,7 +86,22 @@ export const Sidebar = () => {
       </div>
 
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/30 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
-        {menuItems.map((item) => (
+        {menuItems.map((item) => {
+          const [basePath, searchStr] = item.path.split('?');
+          const isActivePath = location.pathname === basePath;
+          let isActuallyActive = false;
+          
+          if (item.path === "/") {
+             isActuallyActive = location.pathname === "/";
+          } else if (searchStr) {
+             isActuallyActive = isActivePath && location.search.includes(searchStr);
+          } else if (item.path === "/orders/history") {
+             isActuallyActive = isActivePath && !location.search;
+          } else {
+             isActuallyActive = location.pathname.startsWith(basePath);
+          }
+
+          return (
           <NavLink
             key={item.name}
             to={item.comingSoon ? "#" : item.path}
@@ -100,16 +116,16 @@ export const Sidebar = () => {
                 );
               }
             }}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActive && !item.comingSoon
+            className={() =>
+              `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActuallyActive && !item.comingSoon
                 ? "bg-white text-primary-800 shadow-md shadow-primary-950/30 border border-transparent"
                 : "text-primary-100 border border-transparent hover:bg-primary-400/20 hover:text-white hover:border-primary-400/30 hover:translate-x-1 hover:shadow-[0_0_15px_rgba(96,165,250,0.3)]"
               }`
             }
           >
-            {({ isActive }) => (
+            {() => (
               <>
-                {isActive && !item.comingSoon && (
+                {isActuallyActive && !item.comingSoon && (
                   <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-white" />
                 )}
                 <item.icon size={20} className="shrink-0" />
@@ -117,7 +133,7 @@ export const Sidebar = () => {
                   <span className="flex-1 truncate">{item.name}</span>
                 )}
                 {sidebarOpen && item.badge !== undefined && (
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-primary-600 text-white" : "bg-white text-primary-800"}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActuallyActive ? "bg-primary-600 text-white" : "bg-white text-primary-800"}`}>
                     {item.badge}
                   </span>
                 )}
@@ -129,7 +145,7 @@ export const Sidebar = () => {
               </>
             )}
           </NavLink>
-        ))}
+        )})}
       </nav>
 
       {sidebarOpen && (
