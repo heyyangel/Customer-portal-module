@@ -1,0 +1,71 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
+import { errorHandler } from './middlewares/errorHandler.js';
+
+// Route imports
+import authRoutes from './modules/auth/auth.routes.js';
+import userRoutes from './modules/users/user.routes.js';
+import productRoutes from './modules/products/product.routes.js';
+import orderRoutes from './modules/orders/order.routes.js';
+import reservationRoutes from './modules/reservations/reservation.routes.js';
+import notificationRoutes from './modules/notifications/notification.routes.js';
+import apiRoutes from './routes/api.routes.js';
+
+const app = express();
+
+// Middleware
+app.use(helmet());
+
+const allowedOrigins = process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : ['http://localhost:5173'];
+app.use(cors({ 
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }, 
+  credentials: true 
+}));
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
+
+// Routes
+import { apiLimiter, authLimiter } from './middlewares/rateLimiter.js';
+
+// Apply general rate limiter to all /api routes
+app.use('/api', apiLimiter);
+
+app.use('/api/v1/auth', authLimiter, authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/products/:brand', productRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/reservations', reservationRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api', apiRoutes);
+app.use('/api/v1', apiRoutes); // also serve under /api/v1 so frontend api.get('/dashboard/stats') resolves
+
+// Health Check
+app.get('/health', (req, res) => {
+  res.status(200).json({ success: true, message: 'ERP Backend is running.' });
+});
+
+// 404 Handler
+app.use((req, res, next) => {
+  res.status(404).json({ success: false, message: 'API Route Not Found' });
+});
+
+// Global Error Handler
+app.use(errorHandler);
+
+export default app;

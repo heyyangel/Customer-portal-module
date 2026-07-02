@@ -1,0 +1,49 @@
+import { api } from "./api";
+
+// Maps a Mongoose product document (from any brand collection) to the
+// normalised shape used throughout the frontend.
+const mapProduct = (p) => {
+  if (!p) return null;
+  return {
+    id:             p._id,
+    code:           p.skuCode,          // real field name from migration
+    msilCode:       p.msilCode || null,
+    name:           p.skuCode,          // products have no "name" column — use SKU as label
+    brand:          p.vendorName || null,
+    category:       Array.isArray(p.category) ? p.category.join(', ') : (p.category || null),
+    warehouse:      null,               // not in Product schema
+    price:          0,                  // not in Product schema
+    availableStock: p.availableForSale ?? 0,
+    reservedStock:  p.bookedQuantity  ?? 0,
+    unit:           'PCS',
+    moq:            p.moq || 1,
+    // pass through remaining fields for detail panel
+    totalAvailableQuantity: p.totalAvailableQuantity ?? 0,
+    inTransitQty:   p.inTransitQty ?? 0,
+    status:         p.status,
+  };
+};
+
+export const productsApi = {
+  // Search across the active user's accessible brand(s)
+  search: async (query, brand = 'koken') => {
+    if (!query) return [];
+    const response = await api.get(`/products/${brand}?search=${encodeURIComponent(query)}`);
+    return (response.data.data || []).map(mapProduct);
+  },
+
+  getAll: async (brand = 'koken') => {
+    const response = await api.get(`/products/${brand}`);
+    return (response.data.data || []).map(mapProduct);
+  },
+
+  getByCode: async (brand = 'koken', skuCode) => {
+    try {
+      const response = await api.get(`/products/${brand}/${encodeURIComponent(skuCode)}`);
+      return mapProduct(response.data.data);
+    } catch (error) {
+      if (error.response?.status === 404) return null;
+      throw error;
+    }
+  },
+};

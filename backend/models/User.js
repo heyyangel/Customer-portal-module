@@ -1,0 +1,23 @@
+import mongoose from 'mongoose';
+
+const userSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true },
+  // Plaintext password used to match the auth sheet requirements.
+  // TODO: replace with bcrypt.hash / bcrypt.compare once ready.
+  password: { type: String, required: true },
+  company: { type: String, default: null },
+  user: { type: String, default: null }, // Maps to 'USER' column
+  role: { type: String, enum: ['Admin', 'Customer'], default: 'Customer' },
+  brandAccess: {
+    koken: { type: Boolean, default: false },
+    bix: { type: Boolean, default: false },
+    imada: { type: Boolean, default: false }
+  },
+  moq: { type: String, default: null }, // String type to support 'SKIP'
+  showMsilCode: { type: Boolean, default: false }, // Maps to 'Show MSIL Code'
+  bookingCcEmails: { type: [String], default: [] }, // Maps to 'Booking CC Emails'
+  status: { type: String, enum: ['Active', 'Inactive', 'Suspended'], default: 'Active' },
+  lastLogin: { type: Date }
+}, { timestamps: true });
+
+export default mongoose.model('User', userSchema);

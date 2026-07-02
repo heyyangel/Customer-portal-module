@@ -1,0 +1,93 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useNavigate, Link } from 'react-router-dom';
+import { useUserStore } from '../../store/userStore';
+import { Button } from '../../components/ui/Button';
+import toast from 'react-hot-toast';
+
+const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(5, 'Password must be at least 5 characters'),
+});
+
+export const Login = () => {
+  const navigate = useNavigate();
+  const { login, loading, error } = useUserStore();
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data) => {
+    const success = await login(data);
+    if (success) {
+      toast.success('Login successful!');
+      navigate('/');
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-2xl font-black text-slate-900 mb-1">Sign in to your account</h2>
+      <p className="text-sm text-slate-500 font-medium mb-8">
+        Welcome to Shraddha Impex Portal
+      </p>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-1">Email address</label>
+          <input
+            {...register('email')}
+            type="email"
+            autoComplete="email"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+            placeholder="admin@shraddhaimpex.net"
+          />
+          {errors.email && <p className="mt-1 text-xs text-error-600">{errors.email.message}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+          <input
+            {...register('password')}
+            type="password"
+            autoComplete="current-password"
+            className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+          />
+          {errors.password && <p className="mt-1 text-xs text-error-600">{errors.password.message}</p>}
+        </div>
+
+        {error && (
+          <div className="p-3 bg-error-50 text-error-700 text-sm rounded-md border border-error-200 font-medium">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 pt-2">
+          <Button type="submit" variant="primary" className="w-full bg-red-600 hover:bg-red-700 border-red-600" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </Button>
+
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-slate-50 px-2 text-slate-500 font-medium">New to Shraddha Impex?</span>
+            </div>
+          </div>
+
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="w-full"
+            onClick={() => navigate('/register')}
+          >
+            Create an Account
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
