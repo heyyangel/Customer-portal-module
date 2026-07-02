@@ -57,26 +57,34 @@ export const Sidebar = () => {
 
   return (
     <aside
-      className={`bg-white border-r border-slate-200 h-screen flex flex-col transition-all duration-300 relative z-30 select-none ${
-        sidebarOpen ? "w-64" : "w-20"
-      }`}
+      className={`bg-linear-to-bl from-slate-800 via-primary-900 to-slate-900 h-screen flex flex-col transition-all duration-300 relative z-30 select-none shadow-xl shadow-primary-950/20 ${sidebarOpen ? "w-64" : "w-20"
+        }`}
     >
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-6 bg-white border border-slate-200 text-slate-500 hover:text-slate-700 w-6 h-6 rounded-full flex items-center justify-center shadow-enterprise hover:scale-105 transition-all focus:outline-none"
+        className="absolute -right-3 top-6 bg-white text-primary-700 hover:text-primary-900 w-6 h-6 rounded-full flex items-center justify-center shadow-enterprise-md hover:scale-110 transition-all focus:outline-none ring-1 ring-primary-100"
       >
         {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
       </button>
 
-      <div className={`h-16 flex items-center border-b border-slate-100 overflow-hidden ${sidebarOpen ? "px-6" : "justify-center"}`}>
-        <img 
-          src="/logo.avif" 
-            alt="Shraddha Impex" 
-          className={`object-contain transition-all duration-300 ${sidebarOpen ? "w-28 h-12" : "w-10 h-10"}`} 
-        />
+      <div className={`py-6 flex flex-col items-center overflow-hidden ${sidebarOpen ? "px-4" : "justify-center"}`}>
+        <div className={`bg-white rounded-xl flex items-center justify-center transition-all duration-300 ${sidebarOpen ? "w-48 h-16 p-2" : "w-11 h-11 p-1"}`}>
+          <img
+            src="/logo.avif"
+            alt="Shraddha Impex"
+            className="object-contain w-full h-full"
+          />
+        </div>
+        {sidebarOpen && (
+          <div className="mt-3 text-center">
+            <span className="text-xs font-bold text-primary-100 uppercase tracking-widest bg-white/10 px-2.5 py-1 rounded-md ring-1 ring-white/10">
+              Customer Portal
+            </span>
+          </div>
+        )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/30 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">
         {menuItems.map((item) => (
           <NavLink
             key={item.name}
@@ -93,37 +101,43 @@ export const Sidebar = () => {
               }
             }}
             className={({ isActive }) =>
-              `flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-                isActive && !item.comingSoon
-                  ? "bg-primary-50 text-primary-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActive && !item.comingSoon
+                ? "bg-white text-primary-800 shadow-md shadow-primary-950/30 border border-transparent"
+                : "text-primary-100 border border-transparent hover:bg-primary-400/20 hover:text-white hover:border-primary-400/30 hover:translate-x-1 hover:shadow-[0_0_15px_rgba(96,165,250,0.3)]"
               }`
             }
           >
-            <item.icon size={20} className="shrink-0" />
-            {sidebarOpen && (
-              <span className="flex-1 truncate">{item.name}</span>
-            )}
-            {sidebarOpen && item.badge !== undefined && (
-              <span className="text-xs bg-primary-600 text-white font-bold px-2 py-0.5 rounded-full">
-                {item.badge}
-              </span>
-            )}
-            {sidebarOpen && item.comingSoon && (
-              <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">
-                Soon
-              </span>
+            {({ isActive }) => (
+              <>
+                {isActive && !item.comingSoon && (
+                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-white" />
+                )}
+                <item.icon size={20} className="shrink-0" />
+                {sidebarOpen && (
+                  <span className="flex-1 truncate">{item.name}</span>
+                )}
+                {sidebarOpen && item.badge !== undefined && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActive ? "bg-primary-600 text-white" : "bg-white text-primary-800"}`}>
+                    {item.badge}
+                  </span>
+                )}
+                {sidebarOpen && item.comingSoon && (
+                  <span className="text-[9px] text-primary-200 bg-white/10 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">
+                    Soon
+                  </span>
+                )}
+              </>
             )}
           </NavLink>
         ))}
       </nav>
 
       {sidebarOpen && (
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-1 text-center">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="p-4 border-t border-white/10 flex flex-col gap-1 text-center">
+          <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">
             Portal Engine v1.0
           </span>
-          <span className="text-[11px] text-slate-500 font-medium">
+          <span className="text-[11px] text-primary-300/70 font-medium">
             © 2026 Enterprise Corp
           </span>
         </div>

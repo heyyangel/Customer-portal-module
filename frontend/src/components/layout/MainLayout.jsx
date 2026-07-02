@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react";
 
 export const MainLayout = () => {
   return (
-    <div className="w-screen h-screen flex overflow-hidden bg-slate-50">
+    <div className="w-screen h-screen flex overflow-hidden bg-linear-to-br from-primary-50/60 via-slate-50 to-primary-50/30">
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">

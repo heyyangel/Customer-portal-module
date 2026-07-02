@@ -81,11 +81,43 @@ export const Reports = () => {
         </Card>
 
         <Card className="bg-white border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800 border-none">
-          <CardContent className="p-5 flex flex-col gap-3 justify-between h-full">
-            <div className="text-slate-300 text-sm font-medium">Download Full Report</div>
-            <button className="w-full py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-bold rounded-lg transition-colors border border-white/10">
-              Export to CSV
+          <CardContent className="p-5 flex flex-col gap-2 justify-center h-full">
+            <div className="text-slate-300 text-sm font-medium mb-1">Download Full Report</div>
+            <button 
+              onClick={() => {
+                import('../../utils/exportUtils').then(({ exportToExcel }) => {
+                  const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue' }];
+                  exportToExcel(monthlyRevenue, cols, 'Revenue_Report');
+                });
+              }}
+              className="w-full py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-lg transition-colors border border-white/10 flex items-center justify-center gap-2"
+            >
+              Export Excel
             </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  import('../../utils/exportUtils').then(({ exportToPDF }) => {
+                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue ($)' }];
+                    exportToPDF(monthlyRevenue, cols, 'Monthly Revenue Report', 'Revenue_Report');
+                  });
+                }}
+                className="flex-1 py-2 bg-white/5 hover:bg-white/15 text-white text-xs font-bold rounded-lg transition-colors border border-white/5 flex items-center justify-center gap-2"
+              >
+                PDF
+              </button>
+              <button 
+                onClick={() => {
+                  import('../../utils/exportUtils').then(({ printData }) => {
+                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue ($)' }];
+                    printData(monthlyRevenue, cols, 'Monthly Revenue Report');
+                  });
+                }}
+                className="flex-1 py-2 bg-white/5 hover:bg-white/15 text-white text-xs font-bold rounded-lg transition-colors border border-white/5 flex items-center justify-center gap-2"
+              >
+                Print
+              </button>
+            </div>
           </CardContent>
         </Card>
       </div>

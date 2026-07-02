@@ -80,7 +80,7 @@ export const Navbar = () => {
   }, []);
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
+    <header className="h-16 bg-white/80 backdrop-blur-md border-b border-primary-100 px-6 flex items-center justify-between sticky top-0 z-20">
       <div className="flex items-center gap-4">
         {!sidebarOpen && (
           <button
@@ -109,7 +109,7 @@ export const Navbar = () => {
       <div className="flex items-center gap-4">
         <button
           onClick={handleRefresh}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors focus:outline-none"
+          className="p-2 rounded-lg text-slate-500 hover:text-primary-700 hover:bg-primary-50 transition-colors focus:outline-none"
           title="Force Sync Central Ledger"
         >
           <RefreshCw size={18} />
@@ -117,7 +117,7 @@ export const Navbar = () => {
 
         <button
           onClick={() => setNotificationsOpen(true)}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors relative focus:outline-none"
+          className="p-2 rounded-lg text-slate-500 hover:text-primary-700 hover:bg-primary-50 transition-colors relative focus:outline-none"
           title="System Alerts"
         >
           <Bell size={18} />
@@ -142,7 +142,7 @@ export const Navbar = () => {
                 className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-sm animate-fade-in"
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary-600 to-primary-800 text-white flex items-center justify-center font-bold text-xs shadow-sm shadow-primary-900/30">
                 {(user?.user || user?.name || "US").slice(0, 2).toUpperCase()}
               </div>
             )}

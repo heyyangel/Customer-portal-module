@@ -73,36 +73,49 @@ export const KPIStats = () => {
   ];
 
   const colorMap = {
-    primary: 'bg-primary-50 text-primary-600 border-primary-200',
-    warning:  'bg-warning-50  text-warning-600  border-warning-200',
-    indigo:   'bg-indigo-50   text-indigo-600   border-indigo-200',
-    success:  'bg-success-50  text-success-600  border-success-200',
-    error:    'bg-error-50    text-error-600    border-error-200',
-    emerald:  'bg-emerald-50  text-emerald-600  border-emerald-200',
+    primary: { bg: 'bg-primary-50', text: 'text-primary-600', border: 'border-primary-200', glow: 'hover:shadow-primary-500/20', hoverBorder: 'hover:border-primary-300' },
+    warning:  { bg: 'bg-warning-50', text: 'text-warning-600', border: 'border-warning-200', glow: 'hover:shadow-warning-500/20', hoverBorder: 'hover:border-warning-300' },
+    indigo:   { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', glow: 'hover:shadow-indigo-500/20', hoverBorder: 'hover:border-indigo-300' },
+    success:  { bg: 'bg-success-50', text: 'text-success-600', border: 'border-success-200', glow: 'hover:shadow-success-500/20', hoverBorder: 'hover:border-success-300' },
+    error:    { bg: 'bg-error-50', text: 'text-error-600', border: 'border-error-200', glow: 'hover:shadow-error-500/20', hoverBorder: 'hover:border-error-300' },
+    emerald:  { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', glow: 'hover:shadow-emerald-500/20', hoverBorder: 'hover:border-emerald-300' },
   };
 
   const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
 
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-4`}>
+    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-5`}>
       {tiles.map((stat, idx) => {
         const Icon = stat.icon;
+        const colors = colorMap[stat.color];
+        
         return (
           <motion.div
             key={stat.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.07 }}
+            transition={{ delay: idx * 0.07, type: "spring", stiffness: 300, damping: 24 }}
+            className="h-full"
           >
-            <Card className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4 flex flex-col gap-3">
-                <div className={`p-2 rounded-lg border w-fit ${colorMap[stat.color]}`}>
-                  <Icon size={18} />
+            <Card className={`relative h-full overflow-hidden group hover:shadow-xl ${colors.glow} hover:-translate-y-1 transition-all duration-300 border border-slate-200 ${colors.hoverBorder} bg-white`}>
+              {/* Background Glow */}
+              <div className={`absolute top-0 right-0 w-32 h-32 bg-linear-to-bl from-white to-transparent opacity-50 rounded-bl-full z-0`} />
+              
+              {/* Watermark Icon */}
+              <div className={`absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-10 transition-all duration-500 transform group-hover:scale-110 group-hover:-rotate-12 ${colors.text} z-0 pointer-events-none`}>
+                <Icon size={120} strokeWidth={1.5} />
+              </div>
+
+              <CardContent className="p-5 relative z-10 flex flex-col h-full gap-4 justify-between">
+                <div className="flex justify-between items-start">
+                  <div className={`p-2.5 rounded-xl border shadow-sm ${colors.bg} ${colors.text} ${colors.border} group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon size={20} strokeWidth={2.5} />
+                  </div>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black text-slate-800">{stat.value}</h3>
-                  <p className="text-xs font-semibold text-slate-500 uppercase mt-0.5 tracking-wide">{stat.title}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{stat.sub}</p>
+                  <h3 className="text-3xl font-black text-slate-800 tracking-tight group-hover:text-slate-900 transition-colors">{stat.value}</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase mt-1 tracking-widest">{stat.title}</p>
+                  <p className="text-[11px] font-medium text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-500 transition-colors">{stat.sub}</p>
                 </div>
               </CardContent>
             </Card>

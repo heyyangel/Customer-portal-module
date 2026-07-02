@@ -57,9 +57,67 @@ export const OrderToolbar = () => {
           <ERPButton variant="outline" size="sm" onClick={refresh}>
             <RefreshCw size={16} className="mr-2" /> Refresh
           </ERPButton>
-          <ERPButton variant="primary" size="sm">
-            <Download size={16} className="mr-2" /> Export
-          </ERPButton>
+          <div className="relative group">
+            <ERPButton variant="primary" size="sm">
+              <Download size={16} className="mr-2" /> Export
+            </ERPButton>
+            <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
+              <button 
+                onClick={() => {
+                  import('../../utils/exportUtils').then(({ exportToExcel }) => {
+                    const data = useOrderHistoryStore.getState().orders;
+                    const cols = [
+                      { key: 'orderId', label: 'Order ID' },
+                      { key: 'poNumber', label: 'PO Number' },
+                      { key: 'company', label: 'Customer' },
+                      { key: 'totalAmount', label: 'Total Amount' },
+                      { key: 'status', label: 'Status' }
+                    ];
+                    exportToExcel(data, cols, 'Order_History');
+                  });
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors"
+              >
+                Export to Excel
+              </button>
+              <button 
+                onClick={() => {
+                  import('../../utils/exportUtils').then(({ exportToPDF }) => {
+                    const data = useOrderHistoryStore.getState().orders;
+                    const cols = [
+                      { key: 'orderId', label: 'Order ID' },
+                      { key: 'poNumber', label: 'PO Number' },
+                      { key: 'company', label: 'Customer' },
+                      { key: 'totalAmount', label: 'Total Amount' },
+                      { key: 'status', label: 'Status' }
+                    ];
+                    exportToPDF(data, cols, 'Order History Report', 'Order_History');
+                  });
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors border-t border-slate-100"
+              >
+                Export to PDF
+              </button>
+              <button 
+                onClick={() => {
+                  import('../../utils/exportUtils').then(({ printData }) => {
+                    const data = useOrderHistoryStore.getState().orders;
+                    const cols = [
+                      { key: 'orderId', label: 'Order ID' },
+                      { key: 'poNumber', label: 'PO Number' },
+                      { key: 'company', label: 'Customer' },
+                      { key: 'totalAmount', label: 'Total Amount' },
+                      { key: 'status', label: 'Status' }
+                    ];
+                    printData(data, cols, 'Order History Report');
+                  });
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors border-t border-slate-100"
+              >
+                Print Report
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
