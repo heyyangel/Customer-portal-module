@@ -2,7 +2,8 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useUIStore } from '../store/uiStore';
 
-const SOCKET_URL = 'http://localhost:5000'; // Should use env variable in prod
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const SOCKET_URL = rawApiUrl.replace(/\/+$/, '');
 
 let socket;
 
