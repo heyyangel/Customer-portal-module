@@ -45,7 +45,7 @@ export const login = async (req, res, next) => {
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'User is not registered. Please create an account.' });
     }
 
     // Support both legacy bcrypt hashes and new plaintext passwords
