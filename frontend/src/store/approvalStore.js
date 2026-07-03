@@ -46,9 +46,9 @@ export const useApprovalStore = create((set, get) => ({
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (a) =>
-          a.orderNumber.toLowerCase().includes(q) ||
-          a.poNumber.toLowerCase().includes(q) ||
-          a.customer.toLowerCase().includes(q)
+          String(a.orderNumber || '').toLowerCase().includes(q) ||
+          String(a.poNumber || '').toLowerCase().includes(q) ||
+          String(a.customer || '').toLowerCase().includes(q)
       );
     }
 
@@ -66,8 +66,11 @@ export const useApprovalStore = create((set, get) => ({
       let cmp = 0;
       if (sortBy === 'createdDate')
         cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === 'orderValue') cmp = a.grandTotal - b.grandTotal;
-      if (sortBy === 'priority') cmp = a.priority.localeCompare(b.priority);
+      if (sortBy === 'orderValue') cmp = (a.grandTotal || 0) - (b.grandTotal || 0);
+      if (sortBy === 'orderNumber')
+        cmp = String(a.orderNumber || '').localeCompare(String(b.orderNumber || ''));
+      if (sortBy === 'priority')
+        cmp = String(a.priority || '').localeCompare(String(b.priority || ''));
       return sortOrder === 'asc' ? cmp : -cmp;
     });
 

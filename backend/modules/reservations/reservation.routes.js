@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getReservations,
   getPendingReservations,
+  restoreBackorder,
   createReservation,
   updateReservationQuantity,
   cancelReservation,
@@ -19,6 +20,7 @@ router.route('/')
   .post(createReservation);
 
 router.get('/pending', getPendingReservations);
+router.post('/:id/restore', restoreBackorder);
 
 router.route('/:id')
   .put(updateReservationQuantity)

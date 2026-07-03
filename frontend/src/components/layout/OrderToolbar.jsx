@@ -1,9 +1,10 @@
-import { Search, Filter, Download, RefreshCw, X } from "lucide-react";
+import { Search, Filter, Download, RefreshCw, X, Users } from "lucide-react";
 import { ERPButton } from "../ui/ERPButton";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useState, useEffect } from "react";
 import { api } from "../../services/api";
 import { useCanViewPrice } from "../../hooks/useCanViewPrice";
+import { useUserStore } from "../../store/userStore";
 
 export const OrderToolbar = () => {
   const { searchQuery, setSearchQuery, filters, setFilters, refresh } =
@@ -11,6 +12,7 @@ export const OrderToolbar = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [companies, setCompanies] = useState([]);
   const canViewPrice = useCanViewPrice();
+  const isAdmin = useUserStore((s) => s.user?.role === "Admin");
 
   // Financial columns (Total Amount) are excluded from exports for non-admins.
   const exportCols = [
@@ -58,6 +60,27 @@ export const OrderToolbar = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <div className="relative hidden sm:block">
+              <Users
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+              <select
+                value={filters.customer}
+                onChange={(e) => setFilters({ customer: e.target.value })}
+                title="Filter by customer"
+                className="appearance-none pl-9 pr-8 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-slate-700 font-semibold max-w-55 truncate"
+              >
+                <option value="all">All Customers</option>
+                {companies.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <ERPButton
             variant="outline"
             size="sm"
@@ -112,7 +135,7 @@ export const OrderToolbar = () => {
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-600">Status</label>
             <select
@@ -121,31 +144,11 @@ export const OrderToolbar = () => {
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-primary-500 text-slate-700 font-semibold"
             >
               <option value="all">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="pending_approval">Pending Approval</option>
-              <option value="approved">Approved</option>
-              <option value="ready">Ready</option>
-              <option value="production">In Production</option>
-              <option value="dispatched">Dispatched</option>
-              <option value="delivered">Delivered</option>
-              <option value="completed">Completed</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-slate-600">Customer</label>
-            <select
-              value={filters.customer}
-              onChange={(e) => setFilters({ customer: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-primary-500 text-slate-700 font-semibold"
-            >
-              <option value="all">All Customers</option>
-              {companies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+              <option value="Booked">Pending Approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Dispatched">Dispatched</option>
+              <option value="Delivered">Delivered</option>
+              <option value="Cancelled">Cancelled</option>
             </select>
           </div>
           <div className="flex flex-col gap-1.5">

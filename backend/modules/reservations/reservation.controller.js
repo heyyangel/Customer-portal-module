@@ -6,6 +6,7 @@ import AuditLog from '../../models/AuditLog.js';
 import Notification from '../../models/Notification.js';
 import MsilCode from '../../models/MsilCode.js';
 import { io } from '../../server.js';
+import { sendEmail } from '../../utils/mailer.js';
 
 // Helper to find product across all brands. Pass a session to read within a
 // transaction so the stock value is consistent for the read-modify-write cycle.
@@ -94,6 +95,94 @@ export const getPendingReservations = async (req, res, next) => {
       return { ...obj, productId: p };
     }));
     res.status(200).json({ success: true, data: populated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin action: when fresh stock arrives, a Pending backorder can be moved back
+// into the customer's active selection list so they can re-confirm it. The
+// customer is emailed and notified to go confirm it from their dashboard.
+// Stock is NOT deducted here — that still happens at confirmation time. We only
+// verify enough stock exists so the customer's confirmation will actually succeed.
+export const restoreBackorder = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Only an admin can move a backorder to the selection list.' });
+    }
+
+    const reservation = await Reservation.findById(req.params.id).populate('customerId', 'user email company');
+    if (!reservation) {
+      throw new Error('Backorder not found.');
+    }
+
+    if (!['Pending', 'Partially Confirmed'].includes(reservation.status)) {
+      throw new Error('Only pending backorders can be moved to the selection list.');
+    }
+
+    const product = await findProductById(reservation.productId);
+    if (!product) {
+      throw new Error(`Product ${reservation.skuCode} not found.`);
+    }
+
+    const available = Math.max(0, product.availableForSale);
+    if (available < reservation.quantity) {
+      throw new Error(
+        `Not enough stock to restore this backorder. Requires ${reservation.quantity}, only ${available} available.`
+      );
+    }
+
+    // Move it back into the active selection list with a fresh 7-day window.
+    const now = new Date();
+    reservation.status = 'Reserved';
+    reservation.reservationDate = now;
+    reservation.expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    reservation.confirmedAt = undefined;
+    reservation.expiredAt = undefined;
+    reservation.lastReminderSent = null;
+    await reservation.save();
+
+    const customer = reservation.customerId || {};
+    const customerName = customer.user || customer.company || 'Customer';
+
+    await logEvent(
+      req.user,
+      'Backorder Restored',
+      `Moved backorder ${reservation.reservationId} (${reservation.skuCode} x${reservation.quantity}) back to selection list.`,
+      req
+    );
+
+    // Notify the customer in-app and by email.
+    sendNotification(
+      customer._id || reservation.customerId,
+      'Backorder Back in Stock',
+      `${reservation.skuCode} (${reservation.quantity} units) is back in stock and moved to your selection list. Confirm it from your dashboard.`,
+      'reservation'
+    );
+
+    if (customer.email) {
+      const subject = `Your backorder ${reservation.skuCode} is back in stock — confirm it now`;
+      const body = `
+        <p>Hi ${customerName},</p>
+        <p>Good news! An item that was previously <strong>out of stock</strong> in your booking is now available again:</p>
+        <table style="border-collapse: collapse; margin: 12px 0;">
+          <tr><td style="padding: 4px 12px; color: #777;">SKU Code</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.skuCode}</td></tr>
+          <tr><td style="padding: 4px 12px; color: #777;">MSIL Code</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.msilCode || '—'}</td></tr>
+          <tr><td style="padding: 4px 12px; color: #777;">Quantity</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.quantity}</td></tr>
+          <tr><td style="padding: 4px 12px; color: #777;">Reference</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.reservationId}</td></tr>
+        </table>
+        <p>It has been moved back to your <strong>selection list</strong>. Please log in to your dashboard and <strong>confirm this order</strong> to secure the stock. Note this selection will expire in 7 days if not confirmed.</p>
+        <p>Thank you.</p>
+      `;
+      // Fire-and-forget: email failure should not fail the request.
+      sendEmail(customer.email, subject, body).catch((e) =>
+        console.error('[restoreBackorder] email error', e)
+      );
+    }
+
+    io.emit('backorder-restored', { reservationId: reservation.reservationId });
+
+    res.status(200).json({ success: true, data: reservation });
   } catch (error) {
     next(error);
   }

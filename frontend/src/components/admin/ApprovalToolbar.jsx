@@ -27,10 +27,11 @@ export const ApprovalToolbar = () => {
             onChange={(e) => setFilters({ stage: e.target.value })}
           >
             <option value="all">All Stages</option>
-            <option value="Pending Approval">Pending Approval</option>
+            <option value="Booked">Pending Approval</option>
             <option value="Approved">Approved</option>
-            <option value="Modification Required">Modification Required</option>
-            <option value="Rejected">Rejected</option>
+            <option value="Dispatched">Dispatched</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
           <select
             className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500"

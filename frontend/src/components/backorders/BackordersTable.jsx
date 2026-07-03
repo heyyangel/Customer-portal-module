@@ -1,13 +1,22 @@
-import { PackageX } from "lucide-react";
+import { PackageX, ArrowRightCircle, Loader2 } from "lucide-react";
 
 /**
  * Renders the list of pending backorders (unfulfilled reservation quantities).
  *
- * @param {Array}   items        Pending items from the cart store.
- * @param {boolean} showCustomer Show the customer column (admin view).
- * @param {boolean} compact      Tighter padding for embedding in a dashboard.
+ * @param {Array}    items        Pending items from the cart store.
+ * @param {boolean}  showCustomer Show the customer column (admin view).
+ * @param {boolean}  compact      Tighter padding for embedding in a dashboard.
+ * @param {Function} onRestore    Admin-only. If provided, renders an action to move
+ *                                the backorder back to the customer's selection list.
+ * @param {string}   restoringId  _id of the row currently being restored (spinner).
  */
-export const BackordersTable = ({ items = [], showCustomer = false, compact = false }) => {
+export const BackordersTable = ({
+  items = [],
+  showCustomer = false,
+  compact = false,
+  onRestore = null,
+  restoringId = null,
+}) => {
   if (!items || items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
@@ -33,6 +42,7 @@ export const BackordersTable = ({ items = [], showCustomer = false, compact = fa
             <th className={`${pad} pr-4 text-center`}>Pending Qty</th>
             <th className={`${pad} pr-4 text-center`}>Current Stock</th>
             <th className={`${pad} pr-4 text-center`}>Status</th>
+            {onRestore && <th className={`${pad} pr-4 text-center`}>Action</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -56,6 +66,34 @@ export const BackordersTable = ({ items = [], showCustomer = false, compact = fa
                   {item.status}
                 </span>
               </td>
+              {onRestore && (
+                <td className={`${pad} pr-4 text-center`}>
+                  {(() => {
+                    const inStock =
+                      (item.product?.availableStock || 0) >= (item.pendingQuantity || 0);
+                    const busy = restoringId === item._id;
+                    return (
+                      <button
+                        onClick={() => onRestore(item)}
+                        disabled={!inStock || busy}
+                        title={
+                          inStock
+                            ? "Move to the customer's selection list & email them to confirm"
+                            : "Not enough stock yet to fulfil this backorder"
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {busy ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <ArrowRightCircle size={14} />
+                        )}
+                        {busy ? "Moving..." : "To Selection List"}
+                      </button>
+                    );
+                  })()}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

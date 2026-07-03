@@ -75,9 +75,9 @@ export const useOrderHistoryStore = create((set, get) => ({
       const q = searchQuery.toLowerCase();
       result = result.filter(
         (o) =>
-          o.poNumber.toLowerCase().includes(q) ||
-          (o.orderNumber && o.orderNumber.toLowerCase().includes(q)) ||
-          o.customer.toLowerCase().includes(q),
+          String(o.poNumber || '').toLowerCase().includes(q) ||
+          String(o.orderNumber || '').toLowerCase().includes(q) ||
+          String(o.customer || '').toLowerCase().includes(q),
       );
     }
 

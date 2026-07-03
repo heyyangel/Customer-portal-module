@@ -98,6 +98,18 @@ export const useCartStore = create((set, get) => ({
     }
   },
 
+  // Admin: move a pending backorder back into the customer's selection list
+  // (emails + notifies the customer to confirm from their dashboard).
+  restorePending: async (reservationId) => {
+    try {
+      await reservationsApi.restore(reservationId);
+      await get().fetchPendingReservations();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
   addItem: async (product, quantity) => {
     set({ loading: true, error: null });
     try {

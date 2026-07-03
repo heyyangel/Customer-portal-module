@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { RefreshCw, PackageX } from "lucide-react";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
@@ -9,14 +10,28 @@ import { Pagination } from "../../components/ui/Pagination";
 const PAGE_SIZE = 10;
 
 export const Backorders = () => {
-  const { pendingItems, fetchPendingReservations, loading } = useCartStore();
+  const { pendingItems, fetchPendingReservations, restorePending, loading } = useCartStore();
   const { user } = useUserStore();
   const isAdmin = user?.role === "Admin";
   const [page, setPage] = useState(1);
+  const [restoringId, setRestoringId] = useState(null);
 
   useEffect(() => {
     fetchPendingReservations();
   }, [fetchPendingReservations]);
+
+  const handleRestore = async (item) => {
+    setRestoringId(item._id);
+    const res = await restorePending(item._id);
+    setRestoringId(null);
+    if (res.success) {
+      toast.success(
+        `${item.product.code} moved to ${item.customer?.name || "the customer"}'s selection list. They've been emailed to confirm.`,
+      );
+    } else {
+      toast.error(res.error || "Could not move backorder to selection list.");
+    }
+  };
 
   const totalPendingQty = pendingItems.reduce(
     (sum, i) => sum + (i.pendingQuantity || 0),
@@ -70,7 +85,12 @@ export const Backorders = () => {
           <PackageX size={18} className="text-amber-500" />
           <h2 className="text-lg font-black text-slate-900 tracking-tight">Backorder Details</h2>
         </div>
-        <BackordersTable items={pageItems} showCustomer={isAdmin} />
+        <BackordersTable
+          items={pageItems}
+          showCustomer={isAdmin}
+          onRestore={isAdmin ? handleRestore : null}
+          restoringId={restoringId}
+        />
 
         {pendingItems.length > PAGE_SIZE && (
           <div className="mt-4 border-t border-slate-100 pt-4">

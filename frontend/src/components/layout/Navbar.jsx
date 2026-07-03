@@ -96,7 +96,7 @@ export const Navbar = () => {
           onClick={useUIStore.getState().toggleCommandPalette}
         >
           <div className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between text-slate-400 group-hover:bg-white group-hover:border-primary-300 transition-all">
-            <span>Search POs, products...</span>
+            <span>Jump to a page...</span>
             <kbd className="font-mono text-[9px] font-bold border border-slate-200 px-1 rounded bg-white">Ctrl+K</kbd>
           </div>
 

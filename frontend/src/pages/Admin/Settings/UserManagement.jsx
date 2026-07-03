@@ -5,7 +5,7 @@ import { useUserStore } from '../../../store/userStore';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
-import { UserPlus, Shield, Mail, Loader2 } from 'lucide-react';
+import { UserPlus, Shield, Mail, Loader2, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORY_STYLES = {
@@ -29,8 +29,17 @@ export const UserManagement = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
 
   const isAdmin = user?.role === 'Admin';
+
+  const q = search.trim().toLowerCase();
+  const filteredUsers = q
+    ? users.filter((u) =>
+        [u.user, u.company, u.email]
+          .some((v) => String(v || '').toLowerCase().includes(q)),
+      )
+    : users;
 
   useEffect(() => {
     if (isAdmin) fetchUsers();
@@ -72,15 +81,34 @@ export const UserManagement = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-800">User Management</h2>
           <p className="text-sm text-slate-500">Manage customers, categories, roles, and access.</p>
         </div>
-        <Button size="sm" variant="primary" onClick={() => setShowAdd(true)}>
-          <UserPlus size={16} className="mr-2" />
-          Add Customer
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative w-full sm:w-72">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, company or email..."
+              className="w-full pl-9 pr-8 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-slate-800"
+            />
+            {search && (
+              <X
+                size={14}
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer hover:text-slate-600"
+              />
+            )}
+          </div>
+          <Button size="sm" variant="primary" onClick={() => setShowAdd(true)} className="shrink-0">
+            <UserPlus size={16} className="mr-2" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -102,12 +130,14 @@ export const UserManagement = () => {
                       <Loader2 className="animate-spin inline-block mr-2" size={24} /> Loading users...
                     </td>
                   </tr>
-                ) : users.length === 0 ? (
+                ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">No users found.</td>
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                      {q ? `No users match "${search}".` : 'No users found.'}
+                    </td>
                   </tr>
                 ) : (
-                  users.map((u) => {
+                  filteredUsers.map((u) => {
                     const displayName = u.user || u.company || u.email;
                     const isCustomer = u.role !== 'Admin';
                     return (

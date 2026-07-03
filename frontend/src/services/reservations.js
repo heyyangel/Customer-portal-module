@@ -26,6 +26,11 @@ export const reservationsApi = {
     return response.data.data;
   },
 
+  restore: async (id) => {
+    const response = await api.post(`/reservations/${id}/restore`);
+    return response.data.data;
+  },
+
   confirm: async (deliveryLocation, remarks) => {
     const response = await api.post('/reservations/confirm', { deliveryLocation, remarks });
     return response.data.data;
