@@ -1,45 +1,37 @@
-import { CheckCircle2, Circle, Check } from "lucide-react";
+import { CheckCircle2, Circle, Check, Ban } from "lucide-react";
 
-const LIFECYCLE_STAGES = [
-  "draft",
-  "pending_approval",
-  "approved",
-  "production",
-  "ready",
-  "dispatched",
-  "delivered",
-  "completed",
+// Stages map to the real Order status enum (Booked → Pending Approval, etc.).
+const LIFECYCLE = [
+  { key: "Booked", label: "Pending Approval" },
+  { key: "Approved", label: "Approved" },
+  { key: "Dispatched", label: "Dispatched" },
+  { key: "Delivered", label: "Delivered" },
 ];
 
-export const OrderTimeline = ({ timeline, currentStatus }) => {
-  const currentIdx = LIFECYCLE_STAGES.indexOf(currentStatus);
-  const isTerminal = ["rejected", "cancelled"].includes(currentStatus);
+const TERMINAL = ["Cancelled", "Rejected"];
+
+export const OrderTimeline = ({ currentStatus }) => {
+  const isTerminal = TERMINAL.includes(currentStatus);
+  const currentIdx = LIFECYCLE.findIndex((s) => s.key === currentStatus);
 
   return (
     <div className="flex flex-col relative py-2">
       <div className="absolute left-3.5 top-4 bottom-8 w-0.5 bg-slate-200 z-0" />
 
-      {LIFECYCLE_STAGES.map((stage, idx) => {
-        const isCompleted =
-          idx < currentIdx || (idx === currentIdx && !isTerminal);
+      {LIFECYCLE.map((stage, idx) => {
+        const isCompleted = currentIdx >= 0 && idx <= currentIdx;
         const isCurrent = idx === currentIdx;
-        const entry = timeline?.find((t) => t.status === stage);
 
         let icon = <Circle size={16} className="text-slate-300 fill-white" />;
         if (isCompleted && !isCurrent) {
-          icon = (
-            <CheckCircle2
-              size={16}
-              className="text-primary-600 fill-primary-100"
-            />
-          );
+          icon = <CheckCircle2 size={16} className="text-primary-600 fill-primary-100" />;
         }
         if (isCurrent) {
           icon = <Check size={16} className="text-white" />;
         }
 
         return (
-          <div key={stage} className="flex gap-4 relative z-10 group">
+          <div key={stage.key} className="flex gap-4 relative z-10 group">
             <div
               className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 mt-0.5 ${
                 isCurrent
@@ -54,7 +46,7 @@ export const OrderTimeline = ({ timeline, currentStatus }) => {
 
             <div className="flex flex-col pb-6">
               <span
-                className={`text-sm font-bold capitalize ${
+                className={`text-sm font-bold ${
                   isCurrent
                     ? "text-primary-700"
                     : isCompleted
@@ -62,20 +54,10 @@ export const OrderTimeline = ({ timeline, currentStatus }) => {
                       : "text-slate-400"
                 }`}
               >
-                {stage.replace("_", " ")}
+                {stage.label}
               </span>
-
-              {entry && (
-                <div className="flex flex-col gap-0.5 mt-1 bg-slate-50 border border-slate-200 p-2.5 rounded-lg w-full max-w-sm">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">
-                    {entry.date} • {entry.time} • {entry.user}
-                  </span>
-                  {entry.remarks && (
-                    <span className="text-xs text-slate-700 mt-0.5">
-                      "{entry.remarks}"
-                    </span>
-                  )}
-                </div>
+              {isCurrent && (
+                <span className="text-[11px] font-semibold text-primary-600 mt-0.5">Current stage</span>
               )}
             </div>
           </div>
@@ -85,12 +67,11 @@ export const OrderTimeline = ({ timeline, currentStatus }) => {
       {isTerminal && (
         <div className="flex gap-4 relative z-10 group mt-2">
           <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 bg-error-600 border-error-600 mt-0.5">
-            <Check size={16} className="text-white" />
+            <Ban size={15} className="text-white" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold capitalize text-error-700">
-              {currentStatus}
-            </span>
+            <span className="text-sm font-bold text-error-700">{currentStatus}</span>
+            <span className="text-[11px] font-semibold text-error-500 mt-0.5">Order closed</span>
           </div>
         </div>
       )}

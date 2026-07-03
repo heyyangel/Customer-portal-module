@@ -11,19 +11,96 @@ import {
   Package,
   FileText,
 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
+import { useUserStore } from "../../store/userStore";
 import { StatusBadge } from "../ui/StatusBadge";
 import { ERPButton } from "../ui/ERPButton";
 import { OrderTimeline } from "../cards/OrderTimeline";
 import { OrderSummaryCard } from "../cards/OrderSummaryCard";
 import { useCanViewPrice } from "../../hooks/useCanViewPrice";
+import toast from "react-hot-toast";
+
+const STATUS_OPTIONS = [
+  { value: "Booked", label: "Pending Approval" },
+  { value: "Approved", label: "Approved" },
+  { value: "Dispatched", label: "Dispatched" },
+  { value: "Delivered", label: "Delivered" },
+  { value: "Cancelled", label: "Cancelled" },
+];
 
 export const OrderDrawer = () => {
-  const { selectedOrder, setSelectedOrder } = useOrderHistoryStore();
+  const { selectedOrder, setSelectedOrder, updateOrderStatus } = useOrderHistoryStore();
+  const { user } = useUserStore();
   const canViewPrice = useCanViewPrice();
+  const isAdmin = user?.role === "Admin";
+
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Sync the status selector whenever a different order is opened.
+  useEffect(() => {
+    if (selectedOrder) setStatus(selectedOrder.status);
+  }, [selectedOrder?.id, selectedOrder?.status]);
 
   if (!selectedOrder) return null;
+
+  const applyStatus = async (newStatus) => {
+    if (busy || newStatus === selectedOrder.status) return;
+    setBusy(true);
+    const res = await updateOrderStatus(selectedOrder.id, newStatus);
+    setBusy(false);
+    if (res.success) toast.success(`Status updated to ${newStatus}`);
+    else toast.error(res.error || "Failed to update status");
+  };
+
+  // Build printable / exportable rows for this order (price columns admin-only).
+  const buildExport = () => {
+    const items = Array.isArray(selectedOrder.items) ? selectedOrder.items : [];
+    const rows = items.map((item, i) => {
+      const p = item.product || {};
+      const qty = item.orderQuantity ?? item.quantity ?? 0;
+      const price = p.price || 0;
+      return {
+        sr: i + 1,
+        code: p.code || p.name || "-",
+        msil: p.msilCode || selectedOrder.msilCode || "-",
+        qty,
+        price: price.toFixed(2),
+        subtotal: (price * qty).toFixed(2),
+      };
+    });
+    const columns = [
+      { key: "sr", label: "S.No" },
+      { key: "code", label: "SKU / Product" },
+      { key: "msil", label: "MSIL Code" },
+      { key: "qty", label: "Qty" },
+      ...(canViewPrice
+        ? [
+            { key: "price", label: "Unit Price (INR)" },
+            { key: "subtotal", label: "Subtotal (INR)" },
+          ]
+        : []),
+    ];
+    const title = `Order ${selectedOrder.orderNumber}${selectedOrder.customer ? ` - ${selectedOrder.customer}` : ""}`;
+    return { rows, columns, title };
+  };
+
+  const handlePrint = () => {
+    const { rows, columns, title } = buildExport();
+    import("../../utils/exportUtils").then(({ printData }) => {
+      const ok = printData(rows, columns, title);
+      if (!ok) toast.error("Unable to open print window (check pop-up blocker).");
+    });
+  };
+
+  const handlePDF = () => {
+    const { rows, columns, title } = buildExport();
+    import("../../utils/exportUtils").then(({ exportToPDF }) => {
+      exportToPDF(rows, columns, title, selectedOrder.orderNumber || "Order");
+    });
+  };
 
   return (
     <AnimatePresence>
@@ -58,10 +135,10 @@ export const OrderDrawer = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <ERPButton variant="outline" size="sm" className="hidden sm:flex">
+              <ERPButton variant="outline" size="sm" className="hidden sm:flex" onClick={handlePrint}>
                 <Printer size={16} className="mr-2" /> Print
               </ERPButton>
-              <ERPButton variant="outline" size="sm" className="hidden sm:flex">
+              <ERPButton variant="outline" size="sm" className="hidden sm:flex" onClick={handlePDF}>
                 <Download size={16} className="mr-2" /> PDF
               </ERPButton>
               <button
@@ -225,10 +302,7 @@ export const OrderDrawer = () => {
                     </h3>
                   </div>
                   <div className="p-5">
-                    <OrderTimeline
-                      timeline={selectedOrder.timeline}
-                      currentStatus={selectedOrder.status}
-                    />
+                    <OrderTimeline currentStatus={selectedOrder.status} />
                   </div>
                 </div>
               </div>
@@ -237,18 +311,50 @@ export const OrderDrawer = () => {
 
           {/* Footer Actions */}
           <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
-            <ERPButton
-              variant="outline"
-              className="text-error-600 border-error-200 hover:bg-error-50"
-            >
-              <Ban size={16} className="mr-2" /> Cancel Order
-            </ERPButton>
+            {isAdmin ? (
+              <ERPButton
+                variant="outline"
+                className="text-error-600 border-error-200 hover:bg-error-50"
+                disabled={busy || selectedOrder.status === "Cancelled"}
+                onClick={() => applyStatus("Cancelled")}
+              >
+                <Ban size={16} className="mr-2" /> Cancel Order
+              </ERPButton>
+            ) : (
+              <span className="text-xs text-slate-400 font-medium">
+                Status: {selectedOrder.status}
+              </span>
+            )}
 
-            <div className="flex gap-2">
-              <ERPButton variant="outline">
+            <div className="flex items-center gap-2">
+              <ERPButton
+                variant="outline"
+                onClick={() => toast("Duplicate is coming soon", { icon: "🧾" })}
+              >
                 <Copy size={16} className="mr-2" /> Duplicate
               </ERPButton>
-              <ERPButton variant="primary">Update Status</ERPButton>
+
+              {isAdmin && (
+                <>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    disabled={busy}
+                    className="text-sm font-semibold border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-700 bg-white"
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <ERPButton
+                    variant="primary"
+                    disabled={busy || status === selectedOrder.status}
+                    onClick={() => applyStatus(status)}
+                  >
+                    {busy ? "Updating..." : "Update Status"}
+                  </ERPButton>
+                </>
+              )}
             </div>
           </div>
         </motion.div>

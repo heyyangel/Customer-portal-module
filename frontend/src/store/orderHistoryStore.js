@@ -121,6 +121,19 @@ export const useOrderHistoryStore = create((set, get) => ({
   setPage: (page) => set({ page }),
   setSelectedOrder: (order) => set({ selectedOrder: order }),
 
+  updateOrderStatus: async (id, status, remarks) => {
+    try {
+      await ordersApi.updateStatus(id, status, remarks);
+      await get().fetchOrders();
+      // Keep the open drawer in sync with the refreshed order.
+      const updated = get().allOrders.find((o) => o.id === id);
+      if (updated) set({ selectedOrder: updated });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
   refresh: async () => {
     set({
       filters: { status: "all", customer: "all", orderType: "all" },

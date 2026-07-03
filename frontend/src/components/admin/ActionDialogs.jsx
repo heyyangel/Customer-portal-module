@@ -13,28 +13,43 @@ export const ActionDialogs = ({
   const [remarks, setRemarks] = useState('');
   const [role, setRole] = useState('Production Manager');
 
-  const handleConfirm = () => {
-    if (!selectedApproval) return;
-    
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleConfirm = async () => {
+    if (!selectedApproval || submitting) return;
+
+    const label = selectedApproval.orderNumber;
+    setSubmitting(true);
+    let res = { success: false };
+
     switch (actionType) {
       case 'approve':
-        approveOrder(selectedApproval.id, remarks);
-        toast.success(`Order ${selectedApproval.orderNumber} Approved`);
+        res = await approveOrder(selectedApproval.id, remarks);
+        if (res?.success) toast.success(`Order ${label} approved`);
         break;
       case 'reject':
-        rejectOrder(selectedApproval.id, remarks);
-        toast.error(`Order ${selectedApproval.orderNumber} Rejected`);
+        res = await rejectOrder(selectedApproval.id, remarks);
+        if (res?.success) toast.success(`Order ${label} rejected`);
         break;
       case 'modify':
-        requestModification(selectedApproval.id, remarks);
-        toast.success(`Modification requested for ${selectedApproval.orderNumber}`);
+        res = await requestModification(selectedApproval.id, remarks);
+        if (res?.success) toast.success(`Modification requested for ${label}`);
         break;
       case 'assign':
-        assignOrder(selectedApproval.id, role, remarks);
-        toast.success(`Order assigned to ${role}`);
+        res = await assignOrder(selectedApproval.id, role, remarks);
+        if (res?.success) toast.success(`Order assigned to ${role}`);
+        break;
+      default:
         break;
     }
-    
+
+    setSubmitting(false);
+
+    if (!res?.success) {
+      toast.error(res?.error || 'Action failed. Please try again.');
+      return; // keep the dialog open so the admin can retry
+    }
+
     setActionType(null);
     setRemarks('');
   };
@@ -87,11 +102,12 @@ export const ActionDialogs = ({
       
       <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-100">
         <Button variant="outline" onClick={() => setActionType(null)}>Cancel</Button>
-        <Button 
+        <Button
           variant={actionType === 'reject' ? 'danger' : 'primary'}
           onClick={handleConfirm}
+          disabled={submitting}
         >
-          Confirm {actionType === 'modify' ? 'Request' : actionType}
+          {submitting ? 'Processing...' : `Confirm ${actionType === 'modify' ? 'Request' : actionType}`}
         </Button>
       </div>
     </Modal>

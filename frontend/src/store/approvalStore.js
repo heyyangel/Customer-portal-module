@@ -97,8 +97,10 @@ export const useApprovalStore = create((set, get) => ({
       set({ loading: true });
       await ordersApi.updateStatus(id, 'Approved', remarks);
       await get().fetchApprovals();
+      return { success: true };
     } catch (err) {
-      set({ error: err.message || 'Failed to approve order', loading: false });
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   },
 
@@ -107,8 +109,10 @@ export const useApprovalStore = create((set, get) => ({
       set({ loading: true });
       await ordersApi.updateStatus(id, 'Cancelled', remarks);
       await get().fetchApprovals();
+      return { success: true };
     } catch (err) {
-      set({ error: err.message || 'Failed to reject order', loading: false });
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   },
 
@@ -117,8 +121,10 @@ export const useApprovalStore = create((set, get) => ({
       set({ loading: true });
       await ordersApi.updateStatus(id, 'Booked', remarks);
       await get().fetchApprovals();
+      return { success: true };
     } catch (err) {
-      set({ error: err.message || 'Failed to request modification', loading: false });
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   },
 
@@ -127,8 +133,10 @@ export const useApprovalStore = create((set, get) => ({
       set({ loading: true });
       await ordersApi.assignOrder(id, role, remarks);
       await get().fetchApprovals();
+      return { success: true };
     } catch (err) {
-      set({ error: err.message || 'Failed to assign order', loading: false });
+      set({ error: err.response?.data?.message || err.message, loading: false });
+      return { success: false, error: err.response?.data?.message || err.message };
     }
   },
 

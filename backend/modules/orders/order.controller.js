@@ -123,46 +123,25 @@ export const createOrder = async (req, res, next) => {
 export const updateOrderStatus = async (req, res, next) => {
   try {
     const { status, remarks } = req.body;
-    const order = await Order.findById(req.params.id);
 
+    const allowed = Order.schema.path('status').enumValues;
+    if (!status || !allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: `Invalid status. Allowed: ${allowed.join(', ')}` });
+    }
+
+    const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    // The Order schema is a flat record (no auditLogs/comments/timeline arrays),
+    // so only update fields that actually exist on it.
     order.status = status;
-    
-    const userRole = req.user.roles?.[0]?.name || 'Administrator';
-    
-    // Add audit log
-    order.auditLogs.unshift({
-      action: `Order Status: ${status}`,
-      user: req.user.name,
-      role: userRole,
-      timestamp: new Date(),
-      ip: req.ip || '127.0.0.1'
-    });
-
-    // Add comment if present
-    if (remarks) {
-      order.comments.unshift({
-        user: req.user.name,
-        role: userRole,
-        text: remarks,
-        timestamp: new Date()
-      });
-    }
-
-    // Add stage to timeline
-    order.timeline.push({
-      stage: status,
-      status: 'Completed',
-      date: new Date(),
-      remarks: remarks || `Order moved to stage: ${status}`
-    });
+    order.statusTimestamp = new Date();
+    if (remarks) order.remarks = remarks;
 
     await order.save();
 
-    // Emit event
     io.emit('order-updated', { orderId: order._id, status });
 
     res.status(200).json({ success: true, data: order });
