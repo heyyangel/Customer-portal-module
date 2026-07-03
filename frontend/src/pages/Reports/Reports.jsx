@@ -1,7 +1,15 @@
+import { Navigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
-import { BarChart3, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, IndianRupee, Package } from 'lucide-react';
+import { useUserStore } from '../../store/userStore';
 
 export const Reports = () => {
+  const { user } = useUserStore();
+  // Reports contain revenue/financial figures — admin only.
+  if (user && user.role !== 'Admin') {
+    return <Navigate to="/" replace />;
+  }
+
   // Mock Data
   const monthlyRevenue = [
     { month: 'Jan', value: 45000 },
@@ -36,7 +44,7 @@ export const Reports = () => {
           <CardContent className="p-5 flex flex-col gap-3">
             <div className="flex justify-between items-start">
               <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center text-primary-600">
-                <DollarSign size={20} />
+                <IndianRupee size={20} />
               </div>
               <span className="text-xs font-bold text-success-600 bg-success-50 px-2 py-1 rounded-full flex items-center gap-1">
                 <TrendingUp size={12} /> +12.5%
@@ -44,7 +52,7 @@ export const Reports = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Revenue</p>
-              <h3 className="text-2xl font-black text-slate-900">$340,000</h3>
+              <h3 className="text-2xl font-black text-slate-900">₹340,000</h3>
             </div>
           </CardContent>
         </Card>
@@ -75,7 +83,7 @@ export const Reports = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Order Value</p>
-              <h3 className="text-2xl font-black text-slate-900">$264.80</h3>
+              <h3 className="text-2xl font-black text-slate-900">₹264.80</h3>
             </div>
           </CardContent>
         </Card>
@@ -98,7 +106,7 @@ export const Reports = () => {
               <button 
                 onClick={() => {
                   import('../../utils/exportUtils').then(({ exportToPDF }) => {
-                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue ($)' }];
+                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue (₹)' }];
                     exportToPDF(monthlyRevenue, cols, 'Monthly Revenue Report', 'Revenue_Report');
                   });
                 }}
@@ -109,7 +117,7 @@ export const Reports = () => {
               <button 
                 onClick={() => {
                   import('../../utils/exportUtils').then(({ printData }) => {
-                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue ($)' }];
+                    const cols = [{ key: 'month', label: 'Month' }, { key: 'value', label: 'Revenue (₹)' }];
                     printData(monthlyRevenue, cols, 'Monthly Revenue Report');
                   });
                 }}
@@ -141,7 +149,7 @@ export const Reports = () => {
                       </div>
                       {/* Tooltip placeholder */}
                       <div className="absolute -top-8 bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        ${data.value.toLocaleString()}
+                        ₹{data.value.toLocaleString()}
                       </div>
                     </div>
                     <span className="text-xs font-bold text-slate-500">{data.month}</span>

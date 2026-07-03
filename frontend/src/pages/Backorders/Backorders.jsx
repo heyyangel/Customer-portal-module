@@ -1,0 +1,90 @@
+import { useEffect, useState } from "react";
+import { RefreshCw, PackageX } from "lucide-react";
+import { useCartStore } from "../../store/cartStore";
+import { useUserStore } from "../../store/userStore";
+import { PageHeader } from "../../components/common/PageHeader";
+import { BackordersTable } from "../../components/backorders/BackordersTable";
+import { Pagination } from "../../components/ui/Pagination";
+
+const PAGE_SIZE = 10;
+
+export const Backorders = () => {
+  const { pendingItems, fetchPendingReservations, loading } = useCartStore();
+  const { user } = useUserStore();
+  const isAdmin = user?.role === "Admin";
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    fetchPendingReservations();
+  }, [fetchPendingReservations]);
+
+  const totalPendingQty = pendingItems.reduce(
+    (sum, i) => sum + (i.pendingQuantity || 0),
+    0,
+  );
+
+  const totalPages = Math.ceil(pendingItems.length / PAGE_SIZE) || 1;
+  const currentPage = Math.min(page, totalPages);
+  const pageItems = pendingItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Pending Backorders"
+        actions={
+          <button
+            onClick={() => fetchPendingReservations()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-all disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        }
+      />
+      <p className="text-slate-500 text-sm font-medium -mt-2">
+        {isAdmin
+          ? "Unfulfilled quantities across all customers, awaiting fresh stock."
+          : "Your unfulfilled quantities, awaiting fresh stock."}
+      </p>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            Backorder Lines
+          </p>
+          <h3 className="text-2xl font-black text-slate-900 mt-1">{pendingItems.length}</h3>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            Total Pending Qty
+          </p>
+          <h3 className="text-2xl font-black text-amber-600 mt-1">{totalPendingQty}</h3>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
+        <div className="flex items-center gap-2 mb-4">
+          <PackageX size={18} className="text-amber-500" />
+          <h2 className="text-lg font-black text-slate-900 tracking-tight">Backorder Details</h2>
+        </div>
+        <BackordersTable items={pageItems} showCustomer={isAdmin} />
+
+        {pendingItems.length > PAGE_SIZE && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <Pagination
+              page={currentPage}
+              pageSize={PAGE_SIZE}
+              totalItems={pendingItems.length}
+              onPageChange={setPage}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Backorders;

@@ -12,7 +12,7 @@ const reservationSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'Draft', 'Reserved', 'Confirmed', 'Expired', 'Cancelled',
+      'Draft', 'Reserved', 'Confirmed', 'Pending', 'Partially Confirmed', 'Expired', 'Cancelled',
       'Pending Approval', 'Approved', 'Processing', 'Completed'
     ],
     default: 'Reserved'

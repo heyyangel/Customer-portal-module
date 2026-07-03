@@ -11,6 +11,7 @@ const initialHeader = {
 
 export const useCartStore = create((set, get) => ({
   items: [], // Stores reservation objects
+  pendingItems: [], // Backordered quantities awaiting stock
   header: { ...initialHeader },
   loading: false,
   error: null,
@@ -61,6 +62,39 @@ export const useCartStore = create((set, get) => ({
       set({ items, loading: false });
     } catch (err) {
       set({ error: err.message || "Failed to load reservations", loading: false });
+    }
+  },
+
+  fetchPendingReservations: async () => {
+    try {
+      const dbPending = await reservationsApi.getPending();
+      const pendingItems = dbPending.map((r) => {
+        const p = r.productId || {};
+        const c = r.customerId || {};
+        return {
+          _id: r._id,
+          id: r.reservationId,
+          status: r.status,
+          pendingQuantity: r.quantity,
+          updatedAt: r.updatedAt,
+          customer:
+            typeof c === "object"
+              ? { name: c.name || c.company || c.email || "—" }
+              : { name: "—" },
+          product: {
+            id: p._id || r.productId,
+            code: r.skuCode,
+            msilCode: r.msilCode,
+            category: p.category || "Category",
+            brand: p.brand || "Brand",
+            availableStock: p.availableForSale !== undefined ? p.availableForSale : 0,
+          },
+        };
+      });
+      set({ pendingItems });
+    } catch {
+      // Non-blocking: pending backorders are supplementary info.
+      set({ pendingItems: [] });
     }
   },
 
@@ -129,6 +163,8 @@ export const useCartStore = create((set, get) => ({
       const header = get().header;
       const order = await reservationsApi.confirm(header.deliveryLocation, header.remarks);
       set({ items: [], header: { ...initialHeader }, loading: false });
+      // Refresh backorders — a partial/unfulfilled confirmation may add to them.
+      await get().fetchPendingReservations();
       return order;
     } catch (err) {
       set({ error: err.response?.data?.message || err.message, loading: false });

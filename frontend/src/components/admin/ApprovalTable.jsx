@@ -64,7 +64,7 @@ export const ApprovalTable = () => {
                       <div className="text-xs text-slate-500">{req.poNumber}</div>
                     </td>
                     <td className="px-4 py-3.5 font-bold text-slate-700">
-                      ${req.orderValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₹{req.orderValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="px-4 py-3.5">
                       <PriorityBadge priority={req.priority} />

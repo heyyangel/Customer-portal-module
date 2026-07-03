@@ -1,10 +1,39 @@
 import { useEffect, useState } from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { Card, CardContent } from '../ui/Card';
 import { api } from '../../services/api';
 import { Loader2, Download } from 'lucide-react';
+
+const COLORS = { booked: '#6366f1', confirmed: '#10b981', confirmedEdge: '#059669', pending: '#f59e0b' };
+
+// Custom tooltip — shows demand vs fulfilled and the pending gap for the month.
+const TrendTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const row = payload[0].payload;
+  const items = [
+    { label: 'Booked', value: row.booked, color: COLORS.booked },
+    { label: 'Confirmed', value: row.confirmed, color: COLORS.confirmed },
+    { label: 'Unfulfilled', value: row.unfulfilled, color: COLORS.pending },
+  ];
+  return (
+    <div className="rounded-xl bg-white shadow-lg border border-slate-100 px-3.5 py-2.5">
+      <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">{label}</p>
+      <div className="flex flex-col gap-1">
+        {items.map((it) => (
+          <div key={it.label} className="flex items-center justify-between gap-6 text-xs">
+            <span className="flex items-center gap-1.5 font-semibold text-slate-600">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: it.color }} />
+              {it.label}
+            </span>
+            <span className="font-black text-slate-900 tabular-nums">{(it.value ?? 0).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const RevenueChart = () => {
   const [trend, setTrend] = useState([]);
@@ -47,8 +76,8 @@ export const RevenueChart = () => {
       <CardContent className="p-6 h-full flex flex-col">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="font-bold text-slate-800">Orders Trend</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Monthly bookings — live from database</p>
+            <h3 className="font-bold text-slate-800">Demand vs Fulfilment</h3>
+            <p className="text-xs text-slate-400 mt-0.5">Monthly booked vs confirmed — the gap is pending</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -77,19 +106,18 @@ export const RevenueChart = () => {
         ) : (
           <div className="flex-1 min-h-65 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart
+              <ComposedChart
                 data={trend}
                 margin={{ top: 10, right: 8, left: -12, bottom: 0 }}
-                barCategoryGap="35%"
               >
                 <defs>
-                  <linearGradient id="colorBlue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563eb" stopOpacity={1}/>
-                    <stop offset="100%" stopColor="#93c5fd" stopOpacity={0.85}/>
+                  <linearGradient id="fillBooked" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.booked} stopOpacity={0.22}/>
+                    <stop offset="100%" stopColor={COLORS.booked} stopOpacity={0.02}/>
                   </linearGradient>
-                  <linearGradient id="colorFaded" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#93c5fd" stopOpacity={0.6}/>
-                    <stop offset="100%" stopColor="#dbeafe" stopOpacity={0.3}/>
+                  <linearGradient id="fillConfirmed" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.confirmed} stopOpacity={0.45}/>
+                    <stop offset="100%" stopColor={COLORS.confirmed} stopOpacity={0.06}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
@@ -107,18 +135,29 @@ export const RevenueChart = () => {
                   allowDecimals={false}
                   width={32}
                 />
-                <Tooltip
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '10px 14px' }}
-                  itemStyle={{ color: '#1e3a8a', fontWeight: 'bold' }}
-                  cursor={{ fill: '#f1f5f9', radius: 8 }}
-                  formatter={(value, name) => [value, name === 'orders' ? 'Orders' : 'Total Qty']}
+                <Tooltip content={<TrendTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                <Legend
+                  verticalAlign="top"
+                  align="right"
+                  height={28}
+                  iconType="circle"
+                  wrapperStyle={{ fontSize: 12, fontWeight: 600 }}
                 />
-                <Bar dataKey="orders" radius={[8, 8, 0, 0]} maxBarSize={64} animationDuration={1200}>
-                  {trend.map((_, i) => (
-                    <Cell key={i} fill={i === trend.length - 1 ? 'url(#colorBlue)' : 'url(#colorFaded)'} />
-                  ))}
-                </Bar>
-              </BarChart>
+                {/* Booked = demand ceiling (indigo line + faint fill) */}
+                <Area
+                  name="Booked" dataKey="booked" type="monotone"
+                  stroke={COLORS.booked} strokeWidth={2} fill="url(#fillBooked)"
+                  dot={{ r: 3, fill: COLORS.booked, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }} animationDuration={1000}
+                />
+                {/* Confirmed = fulfilled portion (emerald filled area under the ceiling) */}
+                <Area
+                  name="Confirmed" dataKey="confirmed" type="monotone"
+                  stroke={COLORS.confirmedEdge} strokeWidth={2} fill="url(#fillConfirmed)"
+                  dot={{ r: 3, fill: COLORS.confirmedEdge, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }} animationDuration={1000}
+                />
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}

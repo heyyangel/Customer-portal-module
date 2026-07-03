@@ -6,6 +6,11 @@ export const reservationsApi = {
     return response.data.data || [];
   },
 
+  getPending: async () => {
+    const response = await api.get('/reservations/pending');
+    return response.data.data || [];
+  },
+
   create: async (productId, quantity) => {
     const response = await api.post('/reservations', { productId, quantity });
     return response.data.data;

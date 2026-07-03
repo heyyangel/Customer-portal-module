@@ -6,6 +6,7 @@ import { useUserStore } from "../../store/userStore";
 import toast from "react-hot-toast";
 
 import { OrderTable } from "../../components/tables/OrderTable";
+import { BackordersTable } from "../../components/backorders/BackordersTable";
 import { ProductSearchDropdown } from "../../components/ui";
 import { Package, Hash, Tag, MapPin, MessageSquare, Receipt, ArrowRight } from "lucide-react";
 
@@ -16,22 +17,24 @@ export const CustomerOrders = () => {
 
   const {
     items: cartItems,
+    pendingItems,
     addItem,
     removeItem,
     updateQuantity,
-    resetAll,
     fetchReservations,
+    fetchPendingReservations,
     confirmBooking,
     loading,
-    error,
     header,
     setPOHeader,
     getEstimatedValue,
     getTax,
     getGrandTotal,
+    getTotalQuantity,
   } = useCartStore();
 
   const { user } = useUserStore();
+  const canViewPrice = user?.role === 'Admin'; // prices are admin-only
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -41,10 +44,11 @@ export const CustomerOrders = () => {
 
   const watchQuantity = watch("quantity");
 
-  // Load existing reservations on mount
+  // Load existing reservations and pending backorders on mount
   useEffect(() => {
     fetchReservations();
-  }, [fetchReservations]);
+    fetchPendingReservations();
+  }, [fetchReservations, fetchPendingReservations]);
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
@@ -68,10 +72,8 @@ export const CustomerOrders = () => {
       return;
     }
 
-    if (data.quantity > selectedProduct.availableStock) {
-      toast.error("Insufficient Stock", { icon: "❌" });
-      return;
-    }
+    // Over-booking is allowed: any quantity may be booked even if it exceeds
+    // available stock. Unfulfillable quantity is moved to Pending at confirmation.
 
     const res = await addItem(selectedProduct, data.quantity);
 
@@ -106,8 +108,17 @@ export const CustomerOrders = () => {
     }
 
     try {
-      await confirmBooking();
-      toast.success("Booking confirmed! Orders sent to Approval workflow.", { icon: "🚀" });
+      const result = await confirmBooking();
+      const totals = result?.totals;
+
+      if (totals?.totalPending > 0) {
+        toast.success(
+          `Confirmed ${totals.totalConfirmed} units. ${totals.totalPending} units moved to Pending (backorder).`,
+          { icon: "📦", duration: 6000 }
+        );
+      } else {
+        toast.success("Booking confirmed! Orders sent to Approval workflow.", { icon: "🚀" });
+      }
       navigate("/orders/history?status=pending");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to confirm booking.");
@@ -218,7 +229,6 @@ export const CustomerOrders = () => {
                   type="number"
                   step={moq}
                   min={moq}
-                  max={selectedProduct?.availableStock}
                   placeholder="Enter Qty"
                   className="w-full px-4 py-3 border border-slate-200/80 rounded-xl outline-none focus:border-[#1a5b9e] focus:ring-2 focus:ring-[#1a5b9e]/20 text-slate-800 font-bold placeholder-slate-300 transition-all bg-slate-50/50 focus:bg-white"
                   disabled={!selectedProduct}
@@ -228,15 +238,17 @@ export const CustomerOrders = () => {
               {selectedProduct && watchQuantity % moq !== 0 && (
                 <span className="text-xs text-red-500 mt-1 font-semibold">Quantity must be a multiple of {moq}</span>
               )}
-              {selectedProduct && watchQuantity > selectedProduct.availableStock && (
-                <span className="text-xs text-red-500 mt-1 font-semibold">Quantity exceeds available stock ({selectedProduct.availableStock})</span>
+              {selectedProduct && watchQuantity > selectedProduct.availableStock && watchQuantity % moq === 0 && (
+                <span className="text-xs text-amber-600 mt-1 font-semibold">
+                  Exceeds available stock ({selectedProduct.availableStock}). {watchQuantity - selectedProduct.availableStock} unit(s) will go to Pending on confirmation.
+                </span>
               )}
             </div>
 
             {/* ADD TO LIST BUTTON */}
             <button
               type="submit"
-              disabled={loading || !selectedProduct || (selectedProduct && watchQuantity > selectedProduct.availableStock) || watchQuantity <= 0 || watchQuantity % moq !== 0}
+              disabled={loading || !selectedProduct || watchQuantity <= 0 || watchQuantity % moq !== 0}
               className="w-full py-3.5 mt-2 bg-gradient-to-r from-[#1a5b9e] to-[#15467a] hover:from-[#15467a] hover:to-[#0f345a] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed tracking-wider text-sm active:scale-[0.98]"
             >
               <span className="text-lg font-light leading-none mb-0.5">+</span> ADD TO LIST
@@ -309,18 +321,26 @@ export const CustomerOrders = () => {
                       <span className="text-white bg-slate-700/50 px-2 py-0.5 rounded-md">{cartItems.length}</span>
                     </div>
                     <div className="flex justify-between text-xs font-bold text-slate-400 mb-2.5">
-                      <span>Est. Value:</span>
-                      <span className="text-white">₹{getEstimatedValue().toLocaleString()}</span>
+                      <span>Total Quantity:</span>
+                      <span className="text-white bg-slate-700/50 px-2 py-0.5 rounded-md">{getTotalQuantity()}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-slate-400 mb-3">
-                      <span>Tax (18%):</span>
-                      <span className="text-white">₹{getTax().toLocaleString()}</span>
-                    </div>
-                    <div className="border-t border-slate-600/80 border-dashed my-3"></div>
-                    <div className="flex justify-between items-center text-sm font-black text-emerald-600">
-                      <span className="tracking-widest">GRAND TOTAL:</span>
-                      <span className="text-xl">₹{getGrandTotal().toLocaleString()}</span>
-                    </div>
+                    {canViewPrice && (
+                      <>
+                        <div className="flex justify-between text-xs font-bold text-slate-400 mb-2.5">
+                          <span>Est. Value:</span>
+                          <span className="text-white">₹{getEstimatedValue().toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold text-slate-400 mb-3">
+                          <span>Tax (18%):</span>
+                          <span className="text-white">₹{getTax().toLocaleString()}</span>
+                        </div>
+                        <div className="border-t border-slate-600/80 border-dashed my-3"></div>
+                        <div className="flex justify-between items-center text-sm font-black text-emerald-600">
+                          <span className="tracking-widest">GRAND TOTAL:</span>
+                          <span className="text-xl">₹{getGrandTotal().toLocaleString()}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -347,6 +367,33 @@ export const CustomerOrders = () => {
           </div>
         </div>
       </div>
+
+      {/* PENDING BACKORDERS SECTION — only for customers with their own backorders,
+          not on the admin's booking page (admins track backorders on the dashboard/Backorders page). */}
+      {user?.role !== 'Admin' && pendingItems && pendingItems.length > 0 && (
+        <div className="mt-8 bg-white p-6 rounded-2xl border border-amber-200/70 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
+
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Package size={18} className="text-amber-500" /> Pending Backorders
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Quantities that could not be fulfilled at confirmation — awaiting fresh stock.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/orders/backorders")}
+              className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-full uppercase tracking-widest transition-all"
+            >
+              View all ({pendingItems.length})
+            </button>
+          </div>
+
+          <BackordersTable items={pendingItems} />
+        </div>
+      )}
     </div>
   );
 };

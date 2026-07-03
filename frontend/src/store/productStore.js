@@ -32,6 +32,18 @@ export const useProductStore = create((set) => ({
     }
   },
 
+  // Load the full catalog across all brands (used by the admin Inventory view so
+  // every item — including low/zero-stock — is visible, not just one brand).
+  fetchAllProducts: async (limit) => {
+    set({ loading: true, error: null });
+    try {
+      const products = await productsApi.getAllBrands(limit);
+      set({ products, loading: false });
+    } catch (err) {
+      set({ error: err.message || "Failed to load products", loading: false });
+    }
+  },
+
   searchProducts: async (query, brand) => {
     if (!query) {
       set({ searchResults: [] });

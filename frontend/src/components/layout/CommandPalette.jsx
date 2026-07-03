@@ -6,7 +6,7 @@ import { useUIStore } from '../../store/uiStore';
 
 const COMMANDS = [
   { id: 1, name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-  { id: 2, name: 'Create Order', icon: ShoppingCart, path: '/orders/new' },
+  { id: 2, name: 'Create Booking', icon: ShoppingCart, path: '/orders/new' },
   { id: 3, name: 'Order History', icon: FileText, path: '/orders/history' },
   { id: 4, name: 'Admin Approvals', icon: Users, path: '/admin/approvals' },
   { id: 5, name: 'Bulk Upload', icon: Package, path: '/orders/bulk-upload' },

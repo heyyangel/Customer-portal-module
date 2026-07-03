@@ -1,4 +1,7 @@
+import { useCanViewPrice } from "../../hooks/useCanViewPrice";
+
 export const ImportSummaryCard = ({ summary }) => {
+  const canViewPrice = useCanViewPrice();
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm select-none">
       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-2">
@@ -47,18 +50,20 @@ export const ImportSummaryCard = ({ summary }) => {
           {summary.totalQuantity} Units
         </span>
       </div>
-      <div className="flex justify-between items-baseline">
-        <span className="text-sm font-black text-slate-800">
-          Estimated Value:
-        </span>
-        <span className="text-xl font-black text-primary-800">
-          ₹
-          {summary.estimatedValue.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </span>
-      </div>
+      {canViewPrice && (
+        <div className="flex justify-between items-baseline">
+          <span className="text-sm font-black text-slate-800">
+            Estimated Value:
+          </span>
+          <span className="text-xl font-black text-primary-800">
+            ₹
+            {summary.estimatedValue.toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

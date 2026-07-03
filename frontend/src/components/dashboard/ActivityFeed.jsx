@@ -42,9 +42,9 @@ export const ActivityFeed = () => {
   }, []);
 
   return (
-    <Card className="h-full">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4">
+    <Card className="h-full max-h-[440px] flex flex-col">
+      <CardContent className="p-6 flex flex-col min-h-0 flex-1">
+        <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4 shrink-0">
           <div>
             <h3 className="font-bold text-slate-800">Recent Orders</h3>
             <p className="text-xs text-slate-400 mt-0.5">Live from database</p>
@@ -52,15 +52,15 @@ export const ActivityFeed = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-32 text-slate-300">
+          <div className="flex items-center justify-center flex-1 text-slate-300">
             <Loader2 className="animate-spin" size={24} />
           </div>
         ) : activities.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
+          <div className="flex items-center justify-center flex-1 text-slate-400 text-sm">
             No orders yet
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto pr-2 -mr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-300 [scrollbar-width:thin] [scrollbar-color:#e2e8f0_transparent]">
             {activities.map((order, idx) => (
               <div key={order._id || idx} className="flex gap-3 relative">
                 {idx !== activities.length - 1 && (

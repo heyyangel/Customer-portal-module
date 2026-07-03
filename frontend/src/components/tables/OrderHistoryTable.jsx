@@ -1,6 +1,7 @@
 import { ChevronUp, ChevronDown, Eye } from "lucide-react";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { StatusBadge } from "../ui/StatusBadge";
+import { useCanViewPrice } from "../../hooks/useCanViewPrice";
 
 export const OrderHistoryTable = () => {
   const {
@@ -13,6 +14,7 @@ export const OrderHistoryTable = () => {
     limit,
     setSelectedOrder,
   } = useOrderHistoryStore();
+  const canViewPrice = useCanViewPrice();
 
   const totalPages = Math.ceil(orders.length / limit);
   const currentOrders = orders.slice((page - 1) * limit, page * limit);
@@ -52,12 +54,14 @@ export const OrderHistoryTable = () => {
               <th className="px-5 py-3 border-b border-slate-200 text-center">
                 Items
               </th>
-              <th
-                className="px-5 py-3 border-b border-slate-200 text-right cursor-pointer hover:bg-slate-100"
-                onClick={() => handleSort("value")}
-              >
-                Grand Total {renderSortIcon("value")}
-              </th>
+              {canViewPrice && (
+                <th
+                  className="px-5 py-3 border-b border-slate-200 text-right cursor-pointer hover:bg-slate-100"
+                  onClick={() => handleSort("value")}
+                >
+                  Grand Total {renderSortIcon("value")}
+                </th>
+              )}
               <th
                 className="px-5 py-3 border-b border-slate-200 text-center cursor-pointer hover:bg-slate-100"
                 onClick={() => handleSort("status")}
@@ -89,13 +93,15 @@ export const OrderHistoryTable = () => {
                   <td className="px-5 py-4 text-center font-bold text-slate-700">
                     {order.totalQuantity}
                   </td>
-                  <td className="px-5 py-4 text-right font-black text-slate-900">
-                    ₹
-                    {(order.grandTotal || 0).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </td>
+                  {canViewPrice && (
+                    <td className="px-5 py-4 text-right font-black text-slate-900">
+                      ₹
+                      {(order.grandTotal || 0).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                  )}
                   <td className="px-5 py-4 text-center">
                     <StatusBadge status={order.status} />
                   </td>
@@ -113,7 +119,7 @@ export const OrderHistoryTable = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={canViewPrice ? 8 : 7}
                   className="px-5 py-10 text-center text-slate-400"
                 >
                   No orders found matching your criteria.

@@ -25,7 +25,10 @@ const orderSchema = new mongoose.Schema({
   date: { type: Date, default: null }, // Maps to 'Date'
   skuCode: { type: String, required: true }, // Maps to 'SKU Code'
   category: { type: String, default: null }, // Maps to 'Category'
-  requestedQty: { type: Number, default: 0 }, // Maps to 'Requested Qty'
+  requestedQty: { type: Number, default: 0 }, // Maps to 'Requested Qty' (kept = confirmedQty for back-compat)
+  bookedQty: { type: Number, default: 0 },     // Original quantity the customer booked
+  confirmedQty: { type: Number, default: 0 },  // Quantity actually fulfilled from stock
+  pendingQty: { type: Number, default: 0 },    // Unfulfilled remainder moved to backorder
   poNumber: { type: String, default: null }, // Maps to 'PO Number'
   remarks: { type: String, default: null }, // Maps to 'Remarks'
   expiryNotified: { type: Boolean, default: false }, // Maps to 'Expiry Notified'

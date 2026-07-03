@@ -6,6 +6,7 @@ import {
   History,
   Clock,
   CheckCircle2,
+  PackageX,
   Boxes,
   BarChart3,
   Settings,
@@ -27,7 +28,7 @@ export const Sidebar = () => {
   const menuItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
     {
-      name: "Create Order",
+      name: "Create Booking",
       path: "/orders/new",
       icon: PlusCircle,
       badge: cartItems.length > 0 ? cartItems.length : undefined,
@@ -44,6 +45,7 @@ export const Sidebar = () => {
       path: "/orders/history?status=approved",
       icon: CheckCircle2,
     },
+    { name: "Backorders", path: "/orders/backorders", icon: PackageX },
     ...(user?.role === 'Admin' ? [
       {
         name: "Admin Approvals",

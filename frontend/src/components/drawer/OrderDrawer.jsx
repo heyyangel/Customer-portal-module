@@ -17,9 +17,11 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { ERPButton } from "../ui/ERPButton";
 import { OrderTimeline } from "../cards/OrderTimeline";
 import { OrderSummaryCard } from "../cards/OrderSummaryCard";
+import { useCanViewPrice } from "../../hooks/useCanViewPrice";
 
 export const OrderDrawer = () => {
   const { selectedOrder, setSelectedOrder } = useOrderHistoryStore();
+  const canViewPrice = useCanViewPrice();
 
   if (!selectedOrder) return null;
 
@@ -150,8 +152,8 @@ export const OrderDrawer = () => {
                           <th className="px-5 py-3">Code / MSIL</th>
                           <th className="px-5 py-3">Product Name</th>
                           <th className="px-5 py-3 text-center">Qty</th>
-                          <th className="px-5 py-3 text-right">Unit Price</th>
-                          <th className="px-5 py-3 text-right">Subtotal</th>
+                          {canViewPrice && <th className="px-5 py-3 text-right">Unit Price</th>}
+                          {canViewPrice && <th className="px-5 py-3 text-right">Subtotal</th>}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
@@ -176,15 +178,19 @@ export const OrderDrawer = () => {
                             <td className="px-5 py-4 text-center font-bold text-slate-700">
                               {item.orderQuantity} {item.product.unit}
                             </td>
-                            <td className="px-5 py-4 text-right font-semibold text-slate-600">
-                              ₹{item.product.price.toLocaleString()}
-                            </td>
-                            <td className="px-5 py-4 text-right font-black text-slate-900">
-                              ₹
-                              {(
-                                item.product.price * item.orderQuantity
-                              ).toLocaleString()}
-                            </td>
+                            {canViewPrice && (
+                              <td className="px-5 py-4 text-right font-semibold text-slate-600">
+                                ₹{item.product.price.toLocaleString()}
+                              </td>
+                            )}
+                            {canViewPrice && (
+                              <td className="px-5 py-4 text-right font-black text-slate-900">
+                                ₹
+                                {(
+                                  item.product.price * item.orderQuantity
+                                ).toLocaleString()}
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -210,7 +216,7 @@ export const OrderDrawer = () => {
 
               {/* Sidebar */}
               <div className="flex flex-col gap-6">
-                <OrderSummaryCard order={selectedOrder} />
+                {canViewPrice && <OrderSummaryCard order={selectedOrder} />}
 
                 <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col">
                   <div className="px-5 py-4 border-b border-slate-100">

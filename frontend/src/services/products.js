@@ -32,9 +32,23 @@ export const productsApi = {
     return (response.data.data || []).map(mapProduct);
   },
 
-  getAll: async (brand = 'koken') => {
-    const response = await api.get(`/products/${brand}`);
+  getAll: async (brand = 'koken', limit) => {
+    const qs = limit ? `?limit=${limit}` : '';
+    const response = await api.get(`/products/${brand}${qs}`);
     return (response.data.data || []).map(mapProduct);
+  },
+
+  // Fetch the full catalog across all brands (admin Inventory). Each product is
+  // tagged with its source brand and low/zero-stock items are included.
+  getAllBrands: async (limit = 2000) => {
+    const brands = ['koken', 'bix', 'imada'];
+    const lists = await Promise.all(
+      brands.map(async (b) => {
+        const list = await productsApi.getAll(b, limit);
+        return list.map((p) => ({ ...p, brand: b.toUpperCase() }));
+      })
+    );
+    return lists.flat();
   },
 
   getByCode: async (brand = 'koken', skuCode) => {

@@ -3,12 +3,23 @@ import { ERPButton } from "../ui/ERPButton";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useState, useEffect } from "react";
 import { api } from "../../services/api";
+import { useCanViewPrice } from "../../hooks/useCanViewPrice";
 
 export const OrderToolbar = () => {
   const { searchQuery, setSearchQuery, filters, setFilters, refresh } =
     useOrderHistoryStore();
   const [showFilters, setShowFilters] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const canViewPrice = useCanViewPrice();
+
+  // Financial columns (Total Amount) are excluded from exports for non-admins.
+  const exportCols = [
+    { key: 'orderId', label: 'Order ID' },
+    { key: 'poNumber', label: 'PO Number' },
+    { key: 'company', label: 'Customer' },
+    ...(canViewPrice ? [{ key: 'totalAmount', label: 'Total Amount' }] : []),
+    { key: 'status', label: 'Status' },
+  ];
 
   // Load distinct company names from real orders
   useEffect(() => {
@@ -66,14 +77,7 @@ export const OrderToolbar = () => {
                 onClick={() => {
                   import('../../utils/exportUtils').then(({ exportToExcel }) => {
                     const data = useOrderHistoryStore.getState().orders;
-                    const cols = [
-                      { key: 'orderId', label: 'Order ID' },
-                      { key: 'poNumber', label: 'PO Number' },
-                      { key: 'company', label: 'Customer' },
-                      { key: 'totalAmount', label: 'Total Amount' },
-                      { key: 'status', label: 'Status' }
-                    ];
-                    exportToExcel(data, cols, 'Order_History');
+                    exportToExcel(data, exportCols, 'Order_History');
                   });
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors"
@@ -84,14 +88,7 @@ export const OrderToolbar = () => {
                 onClick={() => {
                   import('../../utils/exportUtils').then(({ exportToPDF }) => {
                     const data = useOrderHistoryStore.getState().orders;
-                    const cols = [
-                      { key: 'orderId', label: 'Order ID' },
-                      { key: 'poNumber', label: 'PO Number' },
-                      { key: 'company', label: 'Customer' },
-                      { key: 'totalAmount', label: 'Total Amount' },
-                      { key: 'status', label: 'Status' }
-                    ];
-                    exportToPDF(data, cols, 'Order History Report', 'Order_History');
+                    exportToPDF(data, exportCols, 'Order History Report', 'Order_History');
                   });
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors border-t border-slate-100"
@@ -102,14 +99,7 @@ export const OrderToolbar = () => {
                 onClick={() => {
                   import('../../utils/exportUtils').then(({ printData }) => {
                     const data = useOrderHistoryStore.getState().orders;
-                    const cols = [
-                      { key: 'orderId', label: 'Order ID' },
-                      { key: 'poNumber', label: 'PO Number' },
-                      { key: 'company', label: 'Customer' },
-                      { key: 'totalAmount', label: 'Total Amount' },
-                      { key: 'status', label: 'Status' }
-                    ];
-                    printData(data, cols, 'Order History Report');
+                    printData(data, exportCols, 'Order History Report');
                   });
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-primary-600 transition-colors border-t border-slate-100"

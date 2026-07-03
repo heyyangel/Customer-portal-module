@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, MapPin, Building, Printer, MessageSquare, Check, Hand, Edit } from 'lucide-react';
+import { X, MapPin, Building, Printer, MessageSquare, Check, Hand, Edit } from 'lucide-react';
 import { useApprovalStore } from '../../store/approvalStore';
 import { Button } from '../ui/Button';
 import { PriorityBadge } from '../ui/PriorityBadge';
@@ -17,6 +17,8 @@ export const ApprovalDrawer = () => {
   if (!selectedApproval) return null;
 
   const order = selectedApproval;
+  // mapOrder() produces `items` (not `products`); guard against missing data.
+  const orderItems = Array.isArray(order.items) ? order.items : [];
 
   return (
     <AnimatePresence>
@@ -64,10 +66,6 @@ export const ApprovalDrawer = () => {
                 Assigned to: <span className="text-white">{order.assignedTo}</span>
               </span>
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="text-slate-900 bg-white hover:bg-slate-100" onClick={() => setActionType('assign')}>
-                  <User size={16} className="mr-2" />
-                  Assign
-                </Button>
                 <Button size="sm" variant="outline" className="text-slate-900 bg-white hover:bg-slate-100" onClick={() => setActionType('modify')}>
                   <Edit size={16} className="mr-2" />
                   Request Mod
@@ -129,7 +127,7 @@ export const ApprovalDrawer = () => {
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-slate-500 uppercase">Delivery Location</span>
                         <span className="text-sm font-semibold text-slate-700 line-clamp-2">
-                          {order.deliveryLocation}
+                          {order.deliveryLocation || order.location || '—'}
                         </span>
                       </div>
                     </div>
@@ -141,15 +139,15 @@ export const ApprovalDrawer = () => {
                       <MessageSquare size={16} />
                       Initial Remarks
                     </h3>
-                    <p className="text-sm text-primary-800 font-medium">{order.remarks}</p>
+                    <p className="text-sm text-primary-800 font-medium">{order.remarks || '—'}</p>
                   </div>
 
-                  {/* Products Table */}
+                  {/* Order Items */}
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                       <h3 className="font-bold text-slate-800 text-sm">Order Items</h3>
                       <span className="text-xs font-semibold text-slate-500">
-                        {order.products.length} Products
+                        {orderItems.length} {orderItems.length === 1 ? 'Product' : 'Products'}
                       </span>
                     </div>
                     <div className="overflow-x-auto">
@@ -164,24 +162,29 @@ export const ApprovalDrawer = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {order.products.map((p, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50">
-                              <td className="px-4 py-3">
-                                <div className="font-bold text-slate-900">{p.name}</div>
-                                <div className="text-xs text-slate-500 font-mono">{p.msilCode}</div>
-                              </td>
-                              <td className="px-4 py-3 text-slate-600 font-medium">{p.warehouse}</td>
-                              <td className="px-4 py-3 text-right font-bold text-slate-800">{p.requestedQty}</td>
-                              <td className="px-4 py-3 text-right text-slate-600">${p.price.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-right font-bold text-slate-900">${p.subtotal.toFixed(2)}</td>
-                            </tr>
-                          ))}
+                          {orderItems.map((item, idx) => {
+                            const p = item.product || {};
+                            const qty = item.orderQuantity ?? item.quantity ?? 0;
+                            const price = p.price || 0;
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50">
+                                <td className="px-4 py-3">
+                                  <div className="font-bold text-slate-900">{p.name || p.code || '—'}</div>
+                                  <div className="text-xs text-slate-500 font-mono">{p.msilCode || order.msilCode || '—'}</div>
+                                </td>
+                                <td className="px-4 py-3 text-slate-600 font-medium">{p.warehouse || '—'}</td>
+                                <td className="px-4 py-3 text-right font-bold text-slate-800">{qty}</td>
+                                <td className="px-4 py-3 text-right text-slate-600">₹{price.toFixed(2)}</td>
+                                <td className="px-4 py-3 text-right font-bold text-slate-900">₹{(price * qty).toFixed(2)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                         <tfoot className="bg-slate-50 border-t border-slate-200">
                           <tr>
                             <td colSpan={4} className="px-4 py-3 text-right font-bold text-slate-700">Total Value:</td>
                             <td className="px-4 py-3 text-right font-bold text-primary-700 text-lg">
-                              ${order.orderValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              ₹{(order.orderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </td>
                           </tr>
                         </tfoot>

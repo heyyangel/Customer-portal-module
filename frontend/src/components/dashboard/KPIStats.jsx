@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/Card';
-import { TrendingUp, Package, Clock, CheckCircle, AlertTriangle, Users, Loader2 } from 'lucide-react';
+import { TrendingUp, Package, Clock, CheckCircle, AlertTriangle, Users, Truck, PackageX, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useUserStore } from '../../store/userStore';
 
@@ -18,8 +18,8 @@ export const KPIStats = () => {
   }, []);
 
   if (loading) {
-    const skeletonCount = user?.role === 'Admin' ? 6 : 5;
-    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
+    const skeletonCount = user?.role === 'Admin' ? 7 : 6;
+    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-7' : 'xl:grid-cols-6';
     return (
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-4`}>
         {Array.from({ length: skeletonCount }).map((_, i) => (
@@ -58,11 +58,24 @@ export const KPIStats = () => {
       sub: 'Completed deliveries',
       icon: CheckCircle, color: 'success'
     },
+    user?.role === 'Admin'
+      ? {
+          id: 5, title: 'Low Stock SKUs',
+          value: stats?.lowStockAlerts?.toLocaleString() ?? '—',
+          sub: 'Available for sale ≤ 0',
+          icon: AlertTriangle, color: 'error'
+        }
+      : {
+          id: 5, title: 'In Transit',
+          value: stats?.dispatchedOrders?.toLocaleString() ?? '—',
+          sub: 'Dispatched, on the way',
+          icon: Truck, color: 'indigo'
+        },
     {
-      id: 5, title: 'Low Stock SKUs',
-      value: stats?.lowStockAlerts?.toLocaleString() ?? '—',
-      sub: 'Available for sale ≤ 0',
-      icon: AlertTriangle, color: 'error'
+      id: 7, title: 'Pending Backorders',
+      value: stats?.pendingBackorders?.toLocaleString() ?? '—',
+      sub: `${stats?.pendingBackorderQty ?? 0} units awaiting stock`,
+      icon: PackageX, color: 'amber'
     },
     ...(user?.role === 'Admin' ? [{
       id: 6, title: 'Active Users',
@@ -79,9 +92,13 @@ export const KPIStats = () => {
     success:  { bg: 'bg-success-50', text: 'text-success-600', border: 'border-success-200', glow: 'hover:shadow-success-500/20', hoverBorder: 'hover:border-success-300' },
     error:    { bg: 'bg-error-50', text: 'text-error-600', border: 'border-error-200', glow: 'hover:shadow-error-500/20', hoverBorder: 'hover:border-error-300' },
     emerald:  { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', glow: 'hover:shadow-emerald-500/20', hoverBorder: 'hover:border-emerald-300' },
+    amber:    { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', glow: 'hover:shadow-amber-500/20', hoverBorder: 'hover:border-amber-300' },
   };
 
-  const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
+  const colClassByCount = {
+    4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6', 7: 'xl:grid-cols-7'
+  };
+  const gridCols = colClassByCount[tiles.length] || 'xl:grid-cols-6';
 
   return (
     <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-5`}>

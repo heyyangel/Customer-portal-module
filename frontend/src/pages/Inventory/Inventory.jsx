@@ -1,18 +1,30 @@
 import { useState, useMemo, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Boxes, PackageSearch, AlertTriangle, ArrowUpDown, Search, Filter } from 'lucide-react';
+import { Boxes, PackageSearch, AlertTriangle, Search } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
+import { useUserStore } from '../../store/userStore';
+import { Pagination } from '../../components/ui/Pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const PAGE_SIZE = 12;
+
 export const Inventory = () => {
-  const { products, fetchProducts, loading } = useProductStore();
+  const { products, fetchAllProducts } = useProductStore();
+  const { user } = useUserStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name-asc');
+  const [page, setPage] = useState(1);
 
+  // Admin Inventory shows every item across all brands, including low/zero stock.
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    fetchAllProducts();
+  }, [fetchAllProducts]);
+
+  // Reset to the first page whenever the result set changes.
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, sortBy]);
 
   const filteredProducts = useMemo(() => {
     let result = products.filter(p => 
@@ -40,6 +52,16 @@ export const Inventory = () => {
   const totalSKUs = products.length;
   const lowStockItems = products.filter(p => p.availableStock < (p.moq * 2 || 10)).length;
   const totalValue = products.reduce((acc, p) => acc + (p.price * p.availableStock), 0);
+
+  // Clamp the page in case the filtered set shrank, then slice for the current page.
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
+  const currentPage = Math.min(page, totalPages);
+  const pageProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  // Inventory exposes product prices and total stock value — admin only.
+  if (user && user.role !== 'Admin') {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,7 +105,7 @@ export const Inventory = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Est. Value</p>
-              <h3 className="text-2xl font-black text-slate-900">${totalValue.toLocaleString()}</h3>
+              <h3 className="text-2xl font-black text-slate-900">₹{totalValue.toLocaleString()}</h3>
             </div>
           </CardContent>
         </Card>
@@ -134,7 +156,7 @@ export const Inventory = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {filteredProducts.map(product => (
+                  {pageProducts.map(product => (
                     <motion.tr 
                       key={product.code}
                       initial={{ opacity: 0 }}
@@ -161,7 +183,7 @@ export const Inventory = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-bold text-slate-700">
-                        ${product.price.toLocaleString()}
+                        ₹{product.price.toLocaleString()}
                       </td>
                     </motion.tr>
                   ))}
@@ -176,6 +198,17 @@ export const Inventory = () => {
               </tbody>
             </table>
           </div>
+
+          {filteredProducts.length > 0 && (
+            <div className="p-4 border-t border-slate-200">
+              <Pagination
+                page={currentPage}
+                pageSize={PAGE_SIZE}
+                totalItems={filteredProducts.length}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -1,16 +1,26 @@
+import { useEffect } from "react";
 import { PageHeader } from "../../components/common/PageHeader";
 import { KPIStats } from "../../components/dashboard/KPIStats";
 import { RevenueChart } from "../../components/dashboard/RevenueChart";
+import { ConversionSummary } from "../../components/dashboard/ConversionSummary";
 import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
+import { BackordersTable } from "../../components/backorders/BackordersTable";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
-import { PlusCircle, UploadCloud, Users, Package } from "lucide-react";
+import { PlusCircle, UploadCloud, Users, Package, PackageX } from "lucide-react";
 
 import { useUserStore } from "../../store/userStore";
+import { useCartStore } from "../../store/cartStore";
 
 export const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useUserStore();
+  const isAdmin = user?.role === "Admin";
+  const { pendingItems, fetchPendingReservations } = useCartStore();
+
+  useEffect(() => {
+    fetchPendingReservations();
+  }, [fetchPendingReservations]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -43,6 +53,8 @@ export const Dashboard = () => {
 
       <KPIStats />
 
+      <ConversionSummary />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <RevenueChart />
@@ -51,7 +63,29 @@ export const Dashboard = () => {
           <ActivityFeed />
         </div>
       </div>
-      
+
+      {/* Pending Backorders — admin view of unfulfilled quantities across customers */}
+      {isAdmin && (
+        <div className="bg-white p-6 border border-amber-200/70 rounded-2xl shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-amber-400 to-orange-500" />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <PackageX size={18} className="text-amber-500" /> Pending Backorders
+            </h2>
+            {pendingItems.length > 0 && (
+              <button
+                onClick={() => navigate("/orders/backorders")}
+                className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-full uppercase tracking-widest transition-all"
+              >
+                View all ({pendingItems.length})
+              </button>
+            )}
+          </div>
+          <BackordersTable items={pendingItems.slice(0, 5)} showCustomer compact />
+        </div>
+      )}
+
+
       {/* Quick Actions Bar */}
       <div className={`grid gap-5 mt-4 ${user?.role === 'Admin' ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
         <div className="bg-white p-6 border border-slate-200 rounded-2xl cursor-pointer hover:border-primary-400 hover:shadow-xl hover:shadow-primary-100 transition-all flex flex-col items-center justify-center gap-3 group relative overflow-hidden" onClick={() => navigate('/orders/new')}>
