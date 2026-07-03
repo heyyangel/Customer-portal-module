@@ -1,15 +1,18 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { Users, ToggleLeft, Database, Key } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import toast from "react-hot-toast";
 
 export const Admin = () => {
+  const navigate = useNavigate();
   const adminCards = [
     {
       name: "User Management",
-      desc: "Add or modify customer node credentials.",
+      desc: "Add customers and set/change their category (MSIL / Non-MSIL).",
       icon: Users,
+      path: "/admin/users",
     },
     {
       name: "Feature Flag Toggles",
@@ -47,12 +50,14 @@ export const Admin = () => {
             key={card.name}
             className="hover:border-primary-300 transition-colors cursor-pointer select-none"
             onClick={() =>
-              toast.error(
-                `Admin module "${card.name}" is locked. Verify administrator token key.`,
-                {
-                  icon: "🔒",
-                },
-              )
+              card.path
+                ? navigate(card.path)
+                : toast.error(
+                    `Admin module "${card.name}" is locked. Verify administrator token key.`,
+                    {
+                      icon: "🔒",
+                    },
+                  )
             }
           >
             <CardHeader className="flex flex-row items-center gap-4">

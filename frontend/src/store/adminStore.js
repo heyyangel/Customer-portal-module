@@ -27,6 +27,28 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
+  createUser: async (payload) => {
+    try {
+      const newUser = await adminApi.createUser(payload);
+      set((state) => ({ users: [newUser, ...state.users] }));
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || "Failed to create user" };
+    }
+  },
+
+  updateUser: async (userId, updates) => {
+    try {
+      const updatedUser = await adminApi.updateUser(userId, updates);
+      set((state) => ({
+        users: state.users.map((u) => (u._id === userId ? updatedUser : u)),
+      }));
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || "Failed to update user" };
+    }
+  },
+
   updateUserRole: async (userId, roleId) => {
     try {
       const updatedUser = await adminApi.updateUserRole(userId, roleId);

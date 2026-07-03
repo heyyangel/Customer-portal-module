@@ -9,6 +9,7 @@ const OrderHistory = lazy(() => import("../pages/OrderHistory/OrderHistory").the
 const BulkUpload = lazy(() => import("../pages/BulkUpload/BulkUpload").then(m => ({ default: m.BulkUpload })));
 const Backorders = lazy(() => import("../pages/Backorders/Backorders").then(m => ({ default: m.Backorders })));
 const Admin = lazy(() => import("../pages/Admin/Admin").then(m => ({ default: m.Admin })));
+const UserManagement = lazy(() => import("../pages/Admin/Settings/UserManagement").then(m => ({ default: m.UserManagement })));
 const ApprovalDashboard = lazy(() => import("../pages/Admin/ApprovalDashboard").then(m => ({ default: m.ApprovalDashboard })));
 const AuthLayout = lazy(() => import("../pages/Auth/AuthLayout").then(m => ({ default: m.AuthLayout })));
 const Login = lazy(() => import("../pages/Auth/Login").then(m => ({ default: m.Login })));
@@ -56,6 +57,10 @@ export const router = createBrowserRouter([
           {
             path: "admin",
             element: <Admin />,
+          },
+          {
+            path: "admin/users",
+            element: <UserManagement />,
           },
           {
             path: "admin/approvals",

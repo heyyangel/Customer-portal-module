@@ -84,29 +84,41 @@ export const parseExcelFile = async (file) => {
   });
 };
 
-export const downloadTemplate = () => {
-  const templateData = [
-    [
-      "SKU Code",
-      "MSIL Code",
-      "Quantity",
+// Two bulk-import templates, keyed by customer category.
+// MSIL customers order by MSIL Code; Non-MSIL customers order by SKU Code.
+export const TEMPLATE_CONFIG = {
+  MSIL: {
+    label: "MSIL Bulk Import Template",
+    fileName: "MSIL_Bulk_Order_Template.xlsx",
+    headers: ["MSIL Code", "Quantity"],
+    sample: [
+      ["MSIL-XYZ-1", "10"],
+      ["MSIL-ABC-2", "5"],
     ],
-    [
-      "13405M-8",
-      "",
-      "10",
+  },
+  "Non-MSIL": {
+    label: "Non-MSIL Bulk Import Template",
+    fileName: "NonMSIL_Bulk_Order_Template.xlsx",
+    headers: ["SKU Code", "Quantity"],
+    sample: [
+      ["13405M-8", "10"],
+      ["22110K-2", "5"],
     ],
-    [
-      "",
-      "MSIL-XYZ-1",
-      "5",
-    ],
-  ];
+  },
+};
+
+// Resolve a category (defaults to Non-MSIL for anything unrecognised).
+export const resolveTemplate = (category) =>
+  TEMPLATE_CONFIG[category] || TEMPLATE_CONFIG["Non-MSIL"];
+
+export const downloadTemplate = (category = "Non-MSIL") => {
+  const cfg = resolveTemplate(category);
+  const templateData = [cfg.headers, ...cfg.sample];
 
   const ws = XLSX.utils.aoa_to_sheet(templateData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Template");
-  XLSX.writeFile(wb, "Bulk_Order_Template.xlsx");
+  XLSX.writeFile(wb, cfg.fileName);
 };
 
 export const downloadErrorReport = (rows) => {

@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
   company: { type: String, default: null },
   user: { type: String, default: null }, // Maps to 'USER' column
   role: { type: String, enum: ['Admin', 'Customer'], default: 'Customer' },
+  // Customer categorisation — drives which bulk-import template applies.
+  customerCategory: { type: String, enum: ['MSIL', 'Non-MSIL'], default: 'Non-MSIL' },
   brandAccess: {
     koken: { type: Boolean, default: false },
     bix: { type: Boolean, default: false },

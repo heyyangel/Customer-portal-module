@@ -11,6 +11,16 @@ export const adminApi = {
     return response.data.data;
   },
 
+  createUser: async (payload) => {
+    const response = await api.post('/users', payload);
+    return response.data.data;
+  },
+
+  updateUser: async (userId, updates) => {
+    const response = await api.patch(`/users/${userId}`, updates);
+    return response.data.data;
+  },
+
   getRoles: async () => {
     const response = await api.get('/roles');
     return response.data.data;

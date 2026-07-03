@@ -8,11 +8,12 @@ import { ErrorPanel } from "../../components/cards/ErrorPanel";
 import { ERPButton, ConfirmationDialog } from "../../components/ui";
 import { useBulkImportStore } from "../../store/bulkImportStore";
 import { useCartStore } from "../../store/cartStore";
-import { useProductStore } from "../../store/productStore";
+import { useUserStore } from "../../store/userStore";
 import {
   parseExcelFile,
   downloadTemplate,
   downloadErrorReport,
+  resolveTemplate,
 } from "../../utils/excelParser";
 import { api } from "../../services/api";
 import toast from "react-hot-toast";
@@ -23,6 +24,10 @@ export const BulkUpload = () => {
   const { file, rows, summary, setFile, setRows, updateRow, reset } =
     useBulkImportStore();
   const { addItem, confirmBooking } = useCartStore();
+  const { user } = useUserStore();
+  const isAdmin = user?.role === "Admin";
+  const category = user?.customerCategory || "Non-MSIL";
+  const template = resolveTemplate(category);
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -125,19 +130,42 @@ export const BulkUpload = () => {
           <div className="bg-white border border-slate-200 p-6 rounded-xl">
             <h4 className="font-bold text-slate-800 mb-2">Validation Rules</h4>
             <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
-              <li>SKU Code, MSIL Code, & Quantity are validated.</li>
+              <li>SKU Code / MSIL Code & Quantity are validated.</li>
               <li>Missing SKU will look up by MSIL Code.</li>
               <li>Duplicates will be automatically merged.</li>
               <li>Quantities exceeding available stock will be flagged.</li>
             </ul>
-            <ERPButton
-              variant="outline"
-              className="w-full mt-4"
-              onClick={downloadTemplate}
-            >
-              <Download size={16} className="mr-2" />
-              Download Sample Template
-            </ERPButton>
+
+            {isAdmin ? (
+              // Admins aren't tied to a category — offer both templates.
+              <div className="mt-4 flex flex-col gap-2">
+                <p className="text-xs font-semibold text-slate-500">Download an import template:</p>
+                <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate("MSIL")}>
+                  <Download size={16} className="mr-2" />
+                  MSIL Template
+                </ERPButton>
+                <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate("Non-MSIL")}>
+                  <Download size={16} className="mr-2" />
+                  Non-MSIL Template
+                </ERPButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-4 text-xs font-medium text-slate-500">
+                  Your account category is{" "}
+                  <span className="font-bold text-primary-700">{category}</span> — use the{" "}
+                  <span className="font-semibold">{template.label}</span>.
+                </p>
+                <ERPButton
+                  variant="outline"
+                  className="w-full mt-2"
+                  onClick={() => downloadTemplate(category)}
+                >
+                  <Download size={16} className="mr-2" />
+                  Download {template.label}
+                </ERPButton>
+              </>
+            )}
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, updateUserRole } from './user.controller.js';
+import { getUsers, createUser, updateUser, updateUserRole } from './user.controller.js';
 import { protect } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/rbac.js';
 import { auditLogger } from '../../middlewares/auditLogger.js';
@@ -10,6 +10,8 @@ router.use(protect);
 router.use(authorize('manage_users'));
 
 router.get('/', getUsers);
+router.post('/', auditLogger('Create User'), createUser);
+router.patch('/:id', auditLogger('Update User'), updateUser);
 router.put('/:id/roles', auditLogger('Update User Role'), updateUserRole);
 
 export default router;
