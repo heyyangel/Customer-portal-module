@@ -34,6 +34,7 @@ const orderSchema = new mongoose.Schema({
   expiryNotified: { type: Boolean, default: false }, // Maps to 'Expiry Notified'
   uniqueId: { type: String, default: null }, // Maps to 'Unique ID'
   statusTimestamp: { type: Date, default: null }, // Maps to 'Status_Timestamp'
+  assignedToRole: { type: String, default: null }, // Workflow stage owner (set via assignOrder)
   msilCode: { type: String, default: null }, // Maps to 'MSIL CODE'
   poDate: { type: Date, default: null }, // Maps to 'PO Date'
   supplyByDate: { type: Date, default: null }, // Maps to 'SupplyByDate'

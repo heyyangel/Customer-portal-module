@@ -5,7 +5,7 @@ import { Package } from 'lucide-react';
 export const AuthLayout = () => {
   return (
     
-    <div className="min-h-screen flex w-full font-sans bg-linear-to-br from-primary-50 via-white to-primary-100/40">
+    <div className="app-shell min-h-screen flex w-full font-sans bg-linear-to-br from-primary-50 via-white to-primary-100/40">
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="flex flex-col items-center gap-4 mb-10">

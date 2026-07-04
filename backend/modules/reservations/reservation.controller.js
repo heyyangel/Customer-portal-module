@@ -5,19 +5,76 @@ import Order from '../../models/Order.js';
 import AuditLog from '../../models/AuditLog.js';
 import Notification from '../../models/Notification.js';
 import MsilCode from '../../models/MsilCode.js';
+import { nextSequence } from '../../models/Counter.js';
 import { io } from '../../server.js';
 import { sendEmail } from '../../utils/mailer.js';
+
+// The product collection is split one-per-brand; the brand is implied by which
+// collection a doc lives in (there is no brand field on the schema).
+const BRAND_MODELS = [
+  [ProductKoken, 'Koken'],
+  [ProductBIX, 'BIX'],
+  [ProductIMADA, 'IMADA'],
+];
 
 // Helper to find product across all brands. Pass a session to read within a
 // transaction so the stock value is consistent for the read-modify-write cycle.
 const findProductById = async (productId, session = null) => {
   const opts = session ? { session } : {};
-  let p = await ProductKoken.findById(productId, null, opts);
-  if (p) return p;
-  p = await ProductBIX.findById(productId, null, opts);
-  if (p) return p;
-  p = await ProductIMADA.findById(productId, null, opts);
-  return p;
+  for (const [Model] of BRAND_MODELS) {
+    const p = await Model.findById(productId, null, opts);
+    if (p) return p;
+  }
+  return null;
+};
+
+// Derive the brand from a live product doc's model (products_koken → 'Koken').
+// The brand is not a schema field — it is implied by which collection it lives in.
+const brandFromModel = (doc) => {
+  const name = (doc?.constructor?.modelName || '').toLowerCase();
+  if (name.includes('bix')) return 'BIX';
+  if (name.includes('imada')) return 'IMADA';
+  return 'Koken';
+};
+
+// Read-side lookup that also resolves the brand (derived from the collection).
+// Returns a plain object so callers can safely spread extra fields onto it.
+const findProductWithBrand = async (productId) => {
+  for (const [Model, brand] of BRAND_MODELS) {
+    const p = await Model.findById(productId);
+    if (p) return { product: { ...p.toObject(), brand }, brand };
+  }
+  return { product: null, brand: null };
+};
+
+// Atomically fulfil as much of `wantQty` as live stock allows. Uses a guarded
+// $inc so two concurrent confirmations can never oversell (drive stock < 0).
+// Mutates product.availableForSale to the fresh post-decrement value and
+// returns the quantity actually deducted (0..wantQty).
+const deductStockAtomic = async (product, wantQty, session = null) => {
+  const Model = product.constructor;
+  const opts = session ? { session } : {};
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const fresh = await Model.findById(product._id, null, opts);
+    if (!fresh) return 0;
+    const avail = Math.max(0, fresh.availableForSale);
+    const take = Math.min(wantQty, avail);
+    if (take === 0) {
+      product.availableForSale = fresh.availableForSale;
+      return 0;
+    }
+    const updated = await Model.findOneAndUpdate(
+      { _id: product._id, availableForSale: { $gte: take } },
+      { $inc: { availableForSale: -take, bookedQuantity: take } },
+      { new: true, ...opts }
+    );
+    if (updated) {
+      product.availableForSale = updated.availableForSale;
+      return take;
+    }
+    // Stock changed underneath us between read and write — retry with fresh value.
+  }
+  return 0;
 };
 
 // Detects the "transactions not supported" error thrown by a standalone
@@ -67,8 +124,8 @@ export const getReservations = async (req, res, next) => {
     const reservations = await Reservation.find({ customerId: req.user._id, status: 'Reserved' });
     // Manually populate since refs don't span multiple models
     const populated = await Promise.all(reservations.map(async r => {
-      const p = await findProductById(r.productId, null);
-      return { ...r.toObject(), productId: p };
+      const { product } = await findProductWithBrand(r.productId);
+      return { ...r.toObject(), productId: product };
     }));
     res.status(200).json({ success: true, data: populated });
   } catch (error) {
@@ -91,8 +148,8 @@ export const getPendingReservations = async (req, res, next) => {
 
     const populated = await Promise.all(reservations.map(async r => {
       const obj = r.toObject();
-      const p = await findProductById(r.productId, null);
-      return { ...obj, productId: p };
+      const { product } = await findProductWithBrand(r.productId);
+      return { ...obj, productId: product };
     }));
     res.status(200).json({ success: true, data: populated });
   } catch (error) {
@@ -223,7 +280,9 @@ export const createReservation = async (req, res, next) => {
 
     // Stock is NOT allocated/deducted at booking time — only at confirmation.
 
-    const reservationId = `RES-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+    const year = new Date().getFullYear();
+    const seq = await nextSequence(`reservation-${year}`);
+    const reservationId = `RES-${year}-${String(seq).padStart(6, '0')}`;
     const reservationDate = new Date();
     const expiryDate = new Date(reservationDate.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 Days
 
@@ -305,7 +364,7 @@ export const cancelReservation = async (req, res, next) => {
     await reservation.save();
 
     await logEvent(req.user, 'Reservation Cancelled', `Cancelled reservation ${reservation.reservationId}`, req);
-    sendNotification(req.user._id, 'Reservation Cancelled', `Reservation ${reservation.reservationId} has been cancelled and stock released.`, 'reservation');
+    sendNotification(req.user._id, 'Reservation Cancelled', `Reservation ${reservation.reservationId} has been cancelled and removed from your selection list.`, 'reservation');
 
     res.status(200).json({ success: true, data: reservation });
   } catch (error) {
@@ -326,7 +385,9 @@ const runConfirmBooking = async (req, session) => {
     throw new Error('No active reservations to confirm.');
   }
 
-  const orderNumber = `SO-${new Date().getFullYear()}-${Math.floor(Math.random() * 100000).toString().padStart(6, '0')}`;
+  const year = new Date().getFullYear();
+  const orderSeq = await nextSequence(`order-${year}`, session);
+  const orderNumber = `SO-${year}-${String(orderSeq).padStart(6, '0')}`;
   const ordersToCreate = [];
   const summary = [];
   const dateNow = new Date();
@@ -338,21 +399,16 @@ const runConfirmBooking = async (req, session) => {
     }
 
     const requestedQty = resItem.quantity;
-    const available = Math.max(0, product.availableForSale);
 
-    // Fulfill as much as stock allows; the rest becomes a Pending backorder.
-    const confirmedQty = Math.min(requestedQty, available);
+    // Fulfill as much as live stock allows (atomically, so concurrent
+    // confirmations cannot oversell); the rest becomes a Pending backorder.
+    const confirmedQty = await deductStockAtomic(product, requestedQty, session);
     const pendingQty = requestedQty - confirmedQty;
 
-    // Deduct only the confirmed portion from live stock.
     if (confirmedQty > 0) {
-      product.availableForSale -= confirmedQty;
-      product.bookedQuantity += confirmedQty;
-      await product.save({ session });
-
       ordersToCreate.push({
         orderId: orderNumber,
-        brand: product.brand || 'Koken',
+        brand: brandFromModel(product),
         user: req.user._id,
         status: 'Booked', // Equivalent to 'Pending Approval' for the new schema
         orderTimestamp: dateNow,

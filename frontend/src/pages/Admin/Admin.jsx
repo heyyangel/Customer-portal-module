@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Users, ToggleLeft, Database, Key } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
+import { useUserStore } from "../../store/userStore";
 import toast from "react-hot-toast";
 
 export const Admin = () => {
   const navigate = useNavigate();
+  const { user } = useUserStore();
   const adminCards = [
     {
       name: "User Management",
@@ -41,7 +43,7 @@ export const Admin = () => {
         <h1 className="text-xl font-bold text-slate-900">
           Admin Control Panel
         </h1>
-        <Badge variant="primary">Root Account</Badge>
+        <Badge variant="primary">{user?.user || user?.company || user?.email || user?.role || "Admin"}</Badge>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

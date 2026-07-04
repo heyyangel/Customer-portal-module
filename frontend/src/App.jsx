@@ -5,6 +5,7 @@ import { router } from "./routes";
 import { useEffect } from "react";
 import { initSocket } from "./services/socketService";
 import { useUserStore } from "./store/userStore";
+import { useThemeStore } from "./store/themeStore";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,11 +19,13 @@ const queryClient = new QueryClient({
 
 function App() {
   const fetchUser = useUserStore((state) => state.fetchUser);
+  const initTheme = useThemeStore((state) => state.initTheme);
 
   useEffect(() => {
+    initTheme();
     initSocket();
     fetchUser();
-  }, [fetchUser]);
+  }, [fetchUser, initTheme]);
 
   return (
     <QueryClientProvider client={queryClient}>

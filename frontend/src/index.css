@@ -12,3 +12,129 @@ body {
   min-width: 320px;
   min-height: 100vh;
 }
+
+/* ============================================================================
+   DARK MODE OVERRIDE LAYER
+   The app was built with hardcoded light utilities (bg-white, text-slate-*,
+   border-slate-*, …). Rather than add `dark:` variants to ~90 components, this
+   layer remaps the neutral palette when <html> has the `.dark` class. These
+   rules are intentionally UNLAYERED so they win over Tailwind's layered
+   utilities; `html.dark .x` also raises specificity above the base `.x`.
+   Accent colors (primary/success/warning/error, emerald, indigo, amber) are
+   left as-is so they still read as accents on dark surfaces.
+   ========================================================================== */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b1220;
+  color: #e2e8f0;
+}
+
+/* App shells carry a light gradient background — flatten to a dark base. */
+html.dark .app-shell {
+  background-image: none !important;
+  background-color: #0b1220;
+}
+
+/* ---- Surfaces (backgrounds) ---- */
+html.dark .bg-white { background-color: #1e293b; }
+html.dark .bg-slate-50 { background-color: #0f172a; }
+html.dark .bg-slate-100 { background-color: #334155; }
+html.dark .bg-slate-200 { background-color: #475569; }
+html.dark .bg-slate-300 { background-color: #64748b; }
+html.dark .bg-gray-50 { background-color: #0f172a; }
+html.dark .bg-gray-100 { background-color: #334155; }
+
+/* Opacity-modified neutral surfaces used across cards/toolbars/navbar */
+html.dark .bg-white\/80 { background-color: rgba(30, 41, 59, 0.8); }
+html.dark .bg-white\/30 { background-color: rgba(30, 41, 59, 0.3); }
+html.dark .bg-white\/20 { background-color: rgba(255, 255, 255, 0.08); }
+html.dark .bg-white\/15 { background-color: rgba(255, 255, 255, 0.08); }
+html.dark .bg-white\/10 { background-color: rgba(255, 255, 255, 0.06); }
+html.dark .bg-white\/5 { background-color: rgba(255, 255, 255, 0.04); }
+html.dark .bg-slate-50\/80 { background-color: rgba(15, 23, 42, 0.8); }
+html.dark .bg-slate-50\/70 { background-color: rgba(15, 23, 42, 0.7); }
+html.dark .bg-slate-50\/60 { background-color: rgba(15, 23, 42, 0.6); }
+html.dark .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5); }
+html.dark .bg-slate-100\/80 { background-color: rgba(51, 65, 85, 0.8); }
+html.dark .bg-slate-200\/50 { background-color: rgba(71, 85, 105, 0.5); }
+
+/* ---- Text ---- */
+html.dark .text-slate-900 { color: #f8fafc; }
+html.dark .text-slate-800 { color: #e2e8f0; }
+html.dark .text-slate-700 { color: #cbd5e1; }
+html.dark .text-slate-600 { color: #aab6c8; }
+html.dark .text-slate-500 { color: #94a3b8; }
+html.dark .text-slate-400 { color: #7987a0; }
+html.dark .text-slate-300 { color: #64748b; }
+html.dark .text-gray-900 { color: #f8fafc; }
+html.dark .text-gray-800 { color: #e2e8f0; }
+html.dark .text-gray-700 { color: #cbd5e1; }
+html.dark .text-gray-500 { color: #94a3b8; }
+
+/* ---- Borders ---- */
+html.dark .border-slate-100 { border-color: #29354a; }
+html.dark .border-slate-200 { border-color: #334155; }
+html.dark .border-slate-300 { border-color: #475569; }
+html.dark .border-slate-600\/80 { border-color: rgba(71, 85, 105, 0.8); }
+html.dark .border-slate-200\/80 { border-color: rgba(51, 65, 85, 0.8); }
+html.dark .border-slate-200\/70 { border-color: rgba(51, 65, 85, 0.7); }
+html.dark .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6); }
+html.dark .border-slate-200\/50 { border-color: rgba(51, 65, 85, 0.5); }
+html.dark .border-gray-100 { border-color: #29354a; }
+html.dark .border-gray-200 { border-color: #334155; }
+
+/* ---- Dividers ---- */
+html.dark .divide-slate-100 > * + * { border-color: #29354a; }
+html.dark .divide-slate-200\/80 > * + * { border-color: rgba(51, 65, 85, 0.8); }
+
+/* ---- Form controls & placeholders ---- */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  color: #e2e8f0;
+}
+html.dark input:disabled,
+html.dark textarea:disabled,
+html.dark select:disabled {
+  color: #94a3b8;
+}
+html.dark .placeholder-slate-400::placeholder { color: #64748b; }
+html.dark .placeholder-slate-300::placeholder { color: #556071; }
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #64748b; }
+
+/* ---- Hover states that would otherwise flash light on dark ---- */
+html.dark .hover\:bg-white:hover { background-color: #273549; }
+html.dark .hover\:bg-slate-50:hover { background-color: #1a2436; }
+html.dark .hover\:bg-slate-100:hover { background-color: #334155; }
+html.dark .hover\:bg-slate-200:hover { background-color: #475569; }
+html.dark .hover\:border-slate-300:hover { border-color: #64748b; }
+html.dark .hover\:text-slate-900:hover { color: #f8fafc; }
+html.dark .hover\:text-slate-800:hover { color: #e2e8f0; }
+html.dark .hover\:text-slate-700:hover { color: #cbd5e1; }
+
+/* ---- Neutral gradient stops (decorative glows / light gradient panels) ---- */
+html.dark .via-white { --tw-gradient-via-stops: initial; }
+html.dark .from-white,
+html.dark .via-white,
+html.dark .to-white,
+html.dark .from-slate-50,
+html.dark .via-slate-50,
+html.dark .to-slate-50 {
+  --tw-gradient-from: #1e293b;
+  --tw-gradient-via: #1e293b;
+  --tw-gradient-to: #1e293b;
+}
+
+/* Shadows read as invisible on dark; give them a subtle dark cast instead. */
+html.dark .shadow-sm,
+html.dark .shadow,
+html.dark .shadow-md,
+html.dark .shadow-lg,
+html.dark .shadow-xl {
+  --tw-shadow-color: rgba(0, 0, 0, 0.5);
+}

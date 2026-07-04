@@ -3,10 +3,12 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { User, Bell, Shield, Key, Mail, Building, Globe, Moon, Sun, Smartphone } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
+import { useThemeStore } from '../../store/themeStore';
 import { motion } from 'framer-motion';
 
 export const Settings = () => {
   const { user } = useUserStore();
+  const { theme, setTheme } = useThemeStore();
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
@@ -82,7 +84,7 @@ export const Settings = () => {
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Company</label>
                         <div className="relative">
                           <Building className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input type="text" defaultValue="Shraddha Impex" disabled className="w-full pl-10 pr-4 py-2 border border-slate-200 bg-slate-50 rounded-lg outline-none font-medium text-slate-500 cursor-not-allowed" />
+                          <input type="text" defaultValue={user?.company || '—'} disabled className="w-full pl-10 pr-4 py-2 border border-slate-200 bg-slate-50 rounded-lg outline-none font-medium text-slate-500 cursor-not-allowed" />
                         </div>
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -110,18 +112,30 @@ export const Settings = () => {
                   <div>
                     <h4 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">Appearance</h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <button className="flex flex-col items-center gap-3 p-4 border-2 border-primary-500 bg-primary-50 rounded-xl">
-                        <Sun size={24} className="text-primary-600" />
-                        <span className="text-sm font-bold text-slate-800">Light Mode</span>
-                      </button>
-                      <button className="flex flex-col items-center gap-3 p-4 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors opacity-50 cursor-not-allowed">
-                        <Moon size={24} className="text-slate-600" />
-                        <span className="text-sm font-bold text-slate-800">Dark Mode <span className="text-[10px] text-primary-600 font-bold ml-1">(Pro)</span></span>
-                      </button>
-                      <button className="flex flex-col items-center gap-3 p-4 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors">
-                        <Smartphone size={24} className="text-slate-600" />
-                        <span className="text-sm font-bold text-slate-800">System</span>
-                      </button>
+                      {[
+                        { id: 'light', label: 'Light Mode', icon: Sun },
+                        { id: 'dark', label: 'Dark Mode', icon: Moon },
+                        { id: 'system', label: 'System', icon: Smartphone },
+                      ].map((opt) => {
+                        const active = theme === opt.id;
+                        const Icon = opt.icon;
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => setTheme(opt.id)}
+                            aria-pressed={active}
+                            className={`flex flex-col items-center gap-3 p-4 rounded-xl transition-colors ${
+                              active
+                                ? 'border-2 border-primary-500 bg-primary-50'
+                                : 'border border-slate-200 hover:border-slate-300'
+                            }`}
+                          >
+                            <Icon size={24} className={active ? 'text-primary-600' : 'text-slate-600'} />
+                            <span className="text-sm font-bold text-slate-800">{opt.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

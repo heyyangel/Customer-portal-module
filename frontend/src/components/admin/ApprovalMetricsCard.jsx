@@ -6,6 +6,17 @@ import { useApprovalStore } from '../../store/approvalStore';
 export const ApprovalMetricsCard = () => {
   const { allApprovals } = useApprovalStore();
 
+  const isToday = (dateStr) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+
   const metrics = [
     {
       title: 'Pending Approvals',
@@ -15,7 +26,9 @@ export const ApprovalMetricsCard = () => {
     },
     {
       title: 'Approved Today',
-      value: allApprovals.filter((a) => a.workflowStage === 'Approved').length,
+      value: allApprovals.filter(
+        (a) => a.workflowStage === 'Approved' && isToday(a.statusTimestamp || a.updatedAt)
+      ).length,
       icon: CheckCircle,
       color: 'success',
     },
