@@ -30,13 +30,13 @@ export const LOGIN_VARIANTS = {
     subtitle: 'Welcome to the Shraddha Impex Customer Portal',
     placeholder: 'customer@example.com',
     otherPath: '/msil-login',
-    otherPrompt: 'Are you an MSIL partner?',
+    otherPrompt: 'Are you an MSIL User?',
     otherLabel: 'Use the MSIL login',
-    wrongPortalMsg: 'MSIL partners must sign in through the MSIL login.',
+    wrongPortalMsg: 'MSIL user must sign in through the MSIL login.',
   },
   msil: {
     allows: (u) => u?.role !== 'Admin' && u?.customerCategory === 'MSIL',
-    badge: 'MSIL Partner Portal',
+    badge: 'MSIL Portal',
     accent: 'text-blue-700',
     button: 'bg-blue-700 hover:bg-blue-800 border-blue-700',
     ring: 'focus:ring-blue-600 focus:border-blue-600',
@@ -45,9 +45,9 @@ export const LOGIN_VARIANTS = {
     subtitle: 'For Maruti Suzuki (MSIL) authorized partners',
     placeholder: 'partner@msil.example.com',
     otherPath: '/login',
-    otherPrompt: 'Not an MSIL partner?',
+    otherPrompt: 'Not an MSIL User?',
     otherLabel: 'Use the standard login',
-    wrongPortalMsg: 'Only MSIL partners can sign in here. Please use the standard login.',
+    wrongPortalMsg: 'Only MSIL User can sign in here. Please use the standard login.',
   },
 };
 
