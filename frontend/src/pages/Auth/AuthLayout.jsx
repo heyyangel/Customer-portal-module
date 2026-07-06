@@ -9,7 +9,7 @@ export const AuthLayout = () => {
       <div className="flex-1 flex flex-col justify-center py-12 px-4 sm:px-6 lg:flex-none lg:px-20 xl:px-24">
         <div className="mx-auto w-full max-w-sm lg:w-96">
           <div className="flex flex-col items-center gap-4 mb-10">
-            <img src="/logo.avif" alt="Shraddha Impex Logo" className="h-24 w-auto object-contain" />
+            <img src="/logo.avif" alt="Shraddha Impex Logo" className="h-24 w-auto object-contain " />
             <div className="text-center">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
                 Shraddha<span className="text-primary-600">Impex</span>
@@ -26,8 +26,8 @@ export const AuthLayout = () => {
       </div>
       <div className="hidden lg:block relative w-0 flex-1 bg-primary-950">
         <img
-          className="absolute inset-0 h-full w-full object-cover opacity-25"
-          src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
+          className="absolute inset-0 h-full w-full object-cover opacity-90"
+          src="/loginImg.avif"
           alt="Precision Engineering Tools"
         />
         <div className="absolute inset-0 bg-linear-to-tr from-primary-950 via-primary-900/80 to-primary-700/50" />
