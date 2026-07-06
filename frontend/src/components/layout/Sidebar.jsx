@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   PackageX,
   Boxes,
-  BarChart3,
   Users,
   Settings,
   ChevronLeft,
@@ -55,7 +54,8 @@ export const Sidebar = () => {
       },
       { name: "User Management", path: "/admin/users", icon: Users },
       { name: "Inventory", path: "/inventory", icon: Boxes },
-      { name: "Reports", path: "/reports", icon: BarChart3 },
+      // Reports hidden from the menu for now.
+      // { name: "Reports", path: "/reports", icon: BarChart3 },
     ] : []),
     { name: "Settings", path: "/settings", icon: Settings },
   ];
