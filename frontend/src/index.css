@@ -29,93 +29,97 @@ html.dark {
 }
 
 html.dark body {
-  background-color: #0b1220;
-  color: #e2e8f0;
+  background-color: #141a27;
+  color: #d8e0ea;
 }
 
-/* App shells carry a light gradient background — flatten to a dark base. */
+/* App shells: a soft, lifted dark base with a faint brand-blue glow top-right,
+   rather than a flat near-black. Reads gentler and stays on-brand. */
 html.dark .app-shell {
-  background-image: none !important;
-  background-color: #0b1220;
+  background-image:
+    radial-gradient(1100px 520px at 100% -8%, rgba(37, 99, 235, 0.10), transparent 60%),
+    linear-gradient(160deg, #1b2438 0%, #161d2c 60%) !important;
+  background-color: #161d2c;
 }
 
-/* ---- Surfaces (backgrounds) ---- */
-html.dark .bg-white { background-color: #1e293b; }
-html.dark .bg-slate-50 { background-color: #0f172a; }
-html.dark .bg-slate-100 { background-color: #334155; }
-html.dark .bg-slate-200 { background-color: #475569; }
-html.dark .bg-slate-300 { background-color: #64748b; }
-html.dark .bg-gray-50 { background-color: #0f172a; }
-html.dark .bg-gray-100 { background-color: #334155; }
+/* ---- Surfaces (backgrounds) — soft, slightly blue-tinted slate. Cards sit a
+   notch lighter than the page so they read as raised panels, not flat black. */
+html.dark .bg-white { background-color: #232e42; }
+html.dark .bg-slate-50 { background-color: #1d2534; }
+html.dark .bg-slate-100 { background-color: #303b50; }
+html.dark .bg-slate-200 { background-color: #3f4a60; }
+html.dark .bg-slate-300 { background-color: #5b6b82; }
+html.dark .bg-gray-50 { background-color: #1d2534; }
+html.dark .bg-gray-100 { background-color: #303b50; }
 
 /* Opacity-modified neutral surfaces used across cards/toolbars/navbar */
-html.dark .bg-white\/80 { background-color: rgba(30, 41, 59, 0.8); }
-html.dark .bg-white\/30 { background-color: rgba(30, 41, 59, 0.3); }
-html.dark .bg-white\/20 { background-color: rgba(255, 255, 255, 0.08); }
-html.dark .bg-white\/15 { background-color: rgba(255, 255, 255, 0.08); }
-html.dark .bg-white\/10 { background-color: rgba(255, 255, 255, 0.06); }
-html.dark .bg-white\/5 { background-color: rgba(255, 255, 255, 0.04); }
-html.dark .bg-slate-50\/80 { background-color: rgba(15, 23, 42, 0.8); }
-html.dark .bg-slate-50\/70 { background-color: rgba(15, 23, 42, 0.7); }
-html.dark .bg-slate-50\/60 { background-color: rgba(15, 23, 42, 0.6); }
-html.dark .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5); }
-html.dark .bg-slate-100\/80 { background-color: rgba(51, 65, 85, 0.8); }
-html.dark .bg-slate-200\/50 { background-color: rgba(71, 85, 105, 0.5); }
+html.dark .bg-white\/80 { background-color: rgba(35, 46, 66, 0.8); }
+html.dark .bg-white\/30 { background-color: rgba(35, 46, 66, 0.35); }
+html.dark .bg-white\/20 { background-color: rgba(255, 255, 255, 0.07); }
+html.dark .bg-white\/15 { background-color: rgba(255, 255, 255, 0.07); }
+html.dark .bg-white\/10 { background-color: rgba(255, 255, 255, 0.05); }
+html.dark .bg-white\/5 { background-color: rgba(255, 255, 255, 0.035); }
+html.dark .bg-slate-50\/80 { background-color: rgba(29, 37, 52, 0.8); }
+html.dark .bg-slate-50\/70 { background-color: rgba(29, 37, 52, 0.7); }
+html.dark .bg-slate-50\/60 { background-color: rgba(29, 37, 52, 0.6); }
+html.dark .bg-slate-50\/50 { background-color: rgba(29, 37, 52, 0.5); }
+html.dark .bg-slate-100\/80 { background-color: rgba(48, 59, 80, 0.8); }
+html.dark .bg-slate-200\/50 { background-color: rgba(63, 74, 96, 0.5); }
 
-/* ---- Text ---- */
-html.dark .text-slate-900 { color: #f8fafc; }
-html.dark .text-slate-800 { color: #e2e8f0; }
-html.dark .text-slate-700 { color: #cbd5e1; }
-html.dark .text-slate-600 { color: #aab6c8; }
-html.dark .text-slate-500 { color: #94a3b8; }
-html.dark .text-slate-400 { color: #7987a0; }
-html.dark .text-slate-300 { color: #64748b; }
-html.dark .text-gray-900 { color: #f8fafc; }
-html.dark .text-gray-800 { color: #e2e8f0; }
-html.dark .text-gray-700 { color: #cbd5e1; }
-html.dark .text-gray-500 { color: #94a3b8; }
+/* ---- Text — soft whites, gentler contrast (no pure #fff) ---- */
+html.dark .text-slate-900 { color: #ecf0f7; }
+html.dark .text-slate-800 { color: #d8e0ea; }
+html.dark .text-slate-700 { color: #c2ccd9; }
+html.dark .text-slate-600 { color: #9aa6b8; }
+html.dark .text-slate-500 { color: #8a96a9; }
+html.dark .text-slate-400 { color: #6f7b8f; }
+html.dark .text-slate-300 { color: #556074; }
+html.dark .text-gray-900 { color: #ecf0f7; }
+html.dark .text-gray-800 { color: #d8e0ea; }
+html.dark .text-gray-700 { color: #c2ccd9; }
+html.dark .text-gray-500 { color: #8a96a9; }
 
-/* ---- Borders ---- */
-html.dark .border-slate-100 { border-color: #29354a; }
-html.dark .border-slate-200 { border-color: #334155; }
-html.dark .border-slate-300 { border-color: #475569; }
-html.dark .border-slate-600\/80 { border-color: rgba(71, 85, 105, 0.8); }
-html.dark .border-slate-200\/80 { border-color: rgba(51, 65, 85, 0.8); }
-html.dark .border-slate-200\/70 { border-color: rgba(51, 65, 85, 0.7); }
-html.dark .border-slate-200\/60 { border-color: rgba(51, 65, 85, 0.6); }
-html.dark .border-slate-200\/50 { border-color: rgba(51, 65, 85, 0.5); }
-html.dark .border-gray-100 { border-color: #29354a; }
-html.dark .border-gray-200 { border-color: #334155; }
+/* ---- Borders — low-contrast, blue-tinted, tuned to the lighter cards ---- */
+html.dark .border-slate-100 { border-color: #283244; }
+html.dark .border-slate-200 { border-color: #33415a; }
+html.dark .border-slate-300 { border-color: #44526b; }
+html.dark .border-slate-600\/80 { border-color: rgba(71, 85, 105, 0.7); }
+html.dark .border-slate-200\/80 { border-color: rgba(51, 65, 90, 0.8); }
+html.dark .border-slate-200\/70 { border-color: rgba(51, 65, 90, 0.7); }
+html.dark .border-slate-200\/60 { border-color: rgba(51, 65, 90, 0.6); }
+html.dark .border-slate-200\/50 { border-color: rgba(51, 65, 90, 0.5); }
+html.dark .border-gray-100 { border-color: #283244; }
+html.dark .border-gray-200 { border-color: #33415a; }
 
 /* ---- Dividers ---- */
-html.dark .divide-slate-100 > * + * { border-color: #29354a; }
-html.dark .divide-slate-200\/80 > * + * { border-color: rgba(51, 65, 85, 0.8); }
+html.dark .divide-slate-100 > * + * { border-color: #283244; }
+html.dark .divide-slate-200\/80 > * + * { border-color: rgba(51, 65, 90, 0.8); }
 
 /* ---- Form controls & placeholders ---- */
 html.dark input,
 html.dark textarea,
 html.dark select {
-  color: #e2e8f0;
+  color: #d8e0ea;
 }
 html.dark input:disabled,
 html.dark textarea:disabled,
 html.dark select:disabled {
-  color: #94a3b8;
+  color: #8a96a9;
 }
-html.dark .placeholder-slate-400::placeholder { color: #64748b; }
-html.dark .placeholder-slate-300::placeholder { color: #556071; }
+html.dark .placeholder-slate-400::placeholder { color: #626e82; }
+html.dark .placeholder-slate-300::placeholder { color: #4c5666; }
 html.dark input::placeholder,
-html.dark textarea::placeholder { color: #64748b; }
+html.dark textarea::placeholder { color: #626e82; }
 
 /* ---- Hover states that would otherwise flash light on dark ---- */
-html.dark .hover\:bg-white:hover { background-color: #273549; }
-html.dark .hover\:bg-slate-50:hover { background-color: #1a2436; }
-html.dark .hover\:bg-slate-100:hover { background-color: #334155; }
-html.dark .hover\:bg-slate-200:hover { background-color: #475569; }
-html.dark .hover\:border-slate-300:hover { border-color: #64748b; }
-html.dark .hover\:text-slate-900:hover { color: #f8fafc; }
-html.dark .hover\:text-slate-800:hover { color: #e2e8f0; }
-html.dark .hover\:text-slate-700:hover { color: #cbd5e1; }
+html.dark .hover\:bg-white:hover { background-color: #2c3648; }
+html.dark .hover\:bg-slate-50:hover { background-color: #232d3e; }
+html.dark .hover\:bg-slate-100:hover { background-color: #303b50; }
+html.dark .hover\:bg-slate-200:hover { background-color: #3f4a60; }
+html.dark .hover\:border-slate-300:hover { border-color: #4f5a70; }
+html.dark .hover\:text-slate-900:hover { color: #ecf0f7; }
+html.dark .hover\:text-slate-800:hover { color: #d8e0ea; }
+html.dark .hover\:text-slate-700:hover { color: #c2ccd9; }
 
 /* ---- Neutral gradient stops (decorative glows / light gradient panels) ---- */
 html.dark .via-white { --tw-gradient-via-stops: initial; }
@@ -125,16 +129,79 @@ html.dark .to-white,
 html.dark .from-slate-50,
 html.dark .via-slate-50,
 html.dark .to-slate-50 {
-  --tw-gradient-from: #1e293b;
-  --tw-gradient-via: #1e293b;
-  --tw-gradient-to: #1e293b;
+  --tw-gradient-from: #232e42;
+  --tw-gradient-via: #232e42;
+  --tw-gradient-to: #232e42;
 }
 
-/* Shadows read as invisible on dark; give them a subtle dark cast instead. */
+/* Shadows read as invisible on dark; give them a soft, subtle cast. */
 html.dark .shadow-sm,
 html.dark .shadow,
 html.dark .shadow-md,
 html.dark .shadow-lg,
 html.dark .shadow-xl {
-  --tw-shadow-color: rgba(0, 0, 0, 0.5);
+  --tw-shadow-color: rgba(0, 0, 0, 0.35);
 }
+
+/* ---- Sidebar keeps its blue gradient in both themes. Its white pills (logo,
+   badges, collapse toggle) must stay white so their dark content stays legible. */
+html.dark aside .bg-white { background-color: #ffffff; }
+html.dark aside .hover\:bg-white:hover { background-color: #ffffff; }
+
+/* In dark mode the ACTIVE menu item is a soft, on-brand blue highlight (a touch
+   of the dark theme — not stark white, not too dark) with light text/icon.
+   Placed after the .bg-white rule so it wins on the active link. */
+html.dark aside .nav-active { background-color: rgba(96, 165, 250, 0.16); color: #eaf1fd; }
+html.dark aside .nav-active .bg-white { background-color: #bfdbfe; } /* left indicator bar */
+
+/* ---- Accent tints: the very light -50 / -100 pastel fills (icon chips, KPI
+   tiles, badges) look garish on dark surfaces. Replace them with low-opacity
+   washes of the same hue so they read as subtle accents. Icon/text colors are
+   left untouched and remain legible on top. ---- */
+html.dark .bg-primary-50 { background-color: rgba(37, 99, 235, 0.12); }
+html.dark .bg-primary-100 { background-color: rgba(37, 99, 235, 0.18); }
+html.dark .bg-success-50 { background-color: rgba(34, 197, 94, 0.12); }
+html.dark .bg-success-100 { background-color: rgba(34, 197, 94, 0.18); }
+html.dark .bg-warning-50 { background-color: rgba(249, 115, 22, 0.12); }
+html.dark .bg-warning-100 { background-color: rgba(249, 115, 22, 0.18); }
+html.dark .bg-error-50 { background-color: rgba(239, 68, 68, 0.12); }
+html.dark .bg-error-100 { background-color: rgba(239, 68, 68, 0.18); }
+html.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.12); }
+html.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.18); }
+html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.12); }
+html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.18); }
+html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.12); }
+html.dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.18); }
+html.dark .bg-red-50 { background-color: rgba(239, 68, 68, 0.12); }
+
+/* Light accent borders → subtle, soft neutral dark borders so cards don't get a
+   bright halo (e.g. the navbar's border-primary-100). */
+html.dark .border-primary-100 { border-color: #2d3a4e; }
+html.dark .border-primary-200 { border-color: #34435c; }
+html.dark .border-success-100 { border-color: #2a3d33; }
+html.dark .border-warning-100 { border-color: #3e3529; }
+html.dark .border-error-100 { border-color: #442f2e; }
+html.dark .border-amber-200\/70 { border-color: rgba(120, 90, 30, 0.45); }
+
+/* Keep the navbar itself readable as a soft translucent dark glass bar. */
+html.dark .backdrop-blur-md.bg-white\/80 { background-color: rgba(31, 41, 58, 0.82); }
+
+/* ---- Hover glows on cards (Dashboard quick actions, KPI tiles, etc.):
+   the light pastel `hover:shadow-*-100` colors and `from-*-50/50` gradient
+   overlays render as harsh white glows on dark. Soften the shadow to a gentle
+   dark cast and dim the overlay tint to a subtle on-brand wash. ---- */
+html.dark .hover\:shadow-primary-100:hover,
+html.dark .hover\:shadow-indigo-100:hover,
+html.dark .hover\:shadow-success-100:hover,
+html.dark .hover\:shadow-warning-100:hover,
+html.dark .hover\:shadow-error-100:hover,
+html.dark .hover\:shadow-emerald-100:hover,
+html.dark .hover\:shadow-amber-100:hover {
+  --tw-shadow-color: rgba(0, 0, 0, 0.45);
+}
+
+html.dark .from-primary-50\/50 { --tw-gradient-from: rgba(59, 130, 246, 0.12); }
+html.dark .from-indigo-50\/50 { --tw-gradient-from: rgba(99, 102, 241, 0.12); }
+html.dark .from-success-50\/50 { --tw-gradient-from: rgba(34, 197, 94, 0.12); }
+html.dark .from-warning-50\/50 { --tw-gradient-from: rgba(249, 115, 22, 0.12); }
+html.dark .from-emerald-50\/50 { --tw-gradient-from: rgba(16, 185, 129, 0.12); }

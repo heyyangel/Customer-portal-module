@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { User, Bell, Shield, Key, Mail, Building, Globe, Moon, Sun, Smartphone } from 'lucide-react';
+import { User, Bell, Shield, Key, Mail, Building, Globe } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
-import { useThemeStore } from '../../store/themeStore';
 import { motion } from 'framer-motion';
 
 export const Settings = () => {
   const { user } = useUserStore();
-  const { theme, setTheme } = useThemeStore();
   const [activeTab, setActiveTab] = useState('profile');
 
   const tabs = [
@@ -108,39 +106,6 @@ export const Settings = () => {
                 <h3 className="text-lg font-bold text-slate-800 mb-6">App Preferences</h3>
                 
                 <div className="flex flex-col gap-8">
-                  {/* Theme Settings */}
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">Appearance</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {[
-                        { id: 'light', label: 'Light Mode', icon: Sun },
-                        { id: 'dark', label: 'Dark Mode', icon: Moon },
-                        { id: 'system', label: 'System', icon: Smartphone },
-                      ].map((opt) => {
-                        const active = theme === opt.id;
-                        const Icon = opt.icon;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setTheme(opt.id)}
-                            aria-pressed={active}
-                            className={`flex flex-col items-center gap-3 p-4 rounded-xl transition-colors ${
-                              active
-                                ? 'border-2 border-primary-500 bg-primary-50'
-                                : 'border border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            <Icon size={24} className={active ? 'text-primary-600' : 'text-slate-600'} />
-                            <span className="text-sm font-bold text-slate-800">{opt.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <hr className="border-slate-100" />
-
                   {/* Notifications */}
                   <div>
                     <h4 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">Notifications</h4>

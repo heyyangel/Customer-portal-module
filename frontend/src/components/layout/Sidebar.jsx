@@ -122,7 +122,7 @@ export const Sidebar = () => {
             }}
             className={() =>
               `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActuallyActive && !item.comingSoon
-                ? "bg-white text-primary-800 shadow-md shadow-primary-950/30 border border-transparent"
+                ? "nav-active bg-white text-primary-800 shadow-md shadow-primary-950/30 border border-transparent"
                 : "text-primary-100 border border-transparent hover:bg-primary-400/20 hover:text-white hover:border-primary-400/30 hover:translate-x-1 hover:shadow-[0_0_15px_rgba(96,165,250,0.3)]"
               }`
             }
@@ -155,10 +155,12 @@ export const Sidebar = () => {
       {sidebarOpen && (
         <div className="p-4 border-t border-white/10 flex flex-col gap-1 text-center">
           <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">
-            Portal Engine v1.0
+            Powered by
+            <br />
+            D-table Analytics
           </span>
           <span className="text-[11px] text-primary-300/70 font-medium">
-            © 2026 Enterprise Corp
+            © 2026
           </span>
         </div>
       )}

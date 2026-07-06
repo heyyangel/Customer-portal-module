@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import {
   Bell,
-  RefreshCw,
+  Moon,
+  Sun,
   LogOut,
   User as UserIcon,
   Search,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
+import { useThemeStore } from "../../store/themeStore";
 import { Drawer } from "../ui/Drawer";
 import toast from "react-hot-toast";
 
@@ -22,6 +24,14 @@ export const Navbar = () => {
     searchQuery,
     setSearchQuery,
   } = useUIStore();
+
+  const { theme, setTheme } = useThemeStore();
+  const isDark =
+    theme === "dark" ||
+    (theme === "system" &&
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -55,14 +65,6 @@ export const Navbar = () => {
   ];
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleRefresh = () => {
-    toast.promise(new Promise((resolve) => setTimeout(resolve, 800)), {
-      loading: "Refreshing ERP tables...",
-      success: "System inventory synced with central database.",
-      error: "Sync failed.",
-    });
-  };
 
   const handleLogout = () => {
     logout();
@@ -108,11 +110,12 @@ export const Navbar = () => {
 
       <div className="flex items-center gap-4">
         <button
-          onClick={handleRefresh}
+          onClick={() => setTheme(isDark ? "light" : "dark")}
           className="p-2 rounded-lg text-slate-500 hover:text-primary-700 hover:bg-primary-50 transition-colors focus:outline-none"
-          title="Force Sync Central Ledger"
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Toggle dark mode"
         >
-          <RefreshCw size={18} />
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         <button
