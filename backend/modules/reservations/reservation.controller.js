@@ -3,11 +3,11 @@ import Reservation from '../../models/Reservation.js';
 import { ProductKoken, ProductBIX, ProductIMADA } from '../../models/Product.js';
 import Order from '../../models/Order.js';
 import AuditLog from '../../models/AuditLog.js';
-import Notification from '../../models/Notification.js';
 import MsilCode from '../../models/MsilCode.js';
 import { nextSequence } from '../../models/Counter.js';
 import { io } from '../../server.js';
 import { sendEmail } from '../../utils/mailer.js';
+import { notifyUser, notifyAdmins } from '../../utils/notify.js';
 
 // The product collection is split one-per-brand; the brand is implied by which
 // collection a doc lives in (there is no brand field on the schema).
@@ -107,16 +107,9 @@ const logEvent = async (user, action, remarks, req, session = null) => {
   }
 };
 
-// Helper to create notifications
+// Persist + deliver a notification to a single user (their own room only).
 const sendNotification = (userId, title, message, type = 'reservation') => {
-  Notification.create({
-    user: userId,
-    title,
-    message,
-    type
-  }).then(notif => {
-    io.emit('notification-received', notif);
-  }).catch(err => console.error('[Notification error]', err));
+  notifyUser(userId, { title, message, type });
 };
 
 export const getReservations = async (req, res, next) => {
@@ -300,7 +293,9 @@ export const createReservation = async (req, res, next) => {
     }]);
 
     await logEvent(req.user, 'Reservation Created', `Reserved ${quantity} units of ${product.skuCode}`, req);
-    sendNotification(req.user._id, 'Reservation Created', `Temporary 7-day reservation created for ${product.skuCode} (${quantity} units).`, 'reservation');
+    const who = req.user.company || req.user.user || req.user.email;
+    sendNotification(req.user._id, 'Item Booked', `${product.skuCode} (${quantity} units) added to your selection list. Confirm within 7 days — it is auto-cancelled after that.`, 'reservation');
+    notifyAdmins({ title: 'New Booking', message: `${who} booked ${product.skuCode} (${quantity} units). It is now in their selection list.`, type: 'reservation' });
 
     res.status(201).json({ success: true, data: reservation[0] });
   } catch (error) {
@@ -507,6 +502,13 @@ export const confirmBooking = async (req, res, next) => {
       ? `Booking ${orderNumber}: ${totalConfirmed} units confirmed, ${totalPending} units moved to Pending (backorder).`
       : `Your reservation booking ${orderNumber} is confirmed and pending ERP approval.`;
     sendNotification(req.user._id, 'Booking Confirmed', notifMessage, 'order');
+
+    const who = req.user.company || req.user.user || req.user.email;
+    notifyAdmins({
+      title: totalPending > 0 ? 'Order Confirmed (with Backorder)' : 'Order Confirmed',
+      message: `${who} confirmed booking ${orderNumber} — ${totalConfirmed} units confirmed${totalPending > 0 ? `, ${totalPending} units on backorder` : ''}.`,
+      type: 'order',
+    });
 
     if (createdOrders.length) {
       io.emit('order-created', { orderId: createdOrders[0]._id, orderNumber });

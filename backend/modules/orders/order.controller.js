@@ -4,6 +4,7 @@ import { ProductKoken, ProductBIX, ProductIMADA } from '../../models/Product.js'
 import AuditLog from '../../models/AuditLog.js';
 import { nextSequence } from '../../models/Counter.js';
 import { io } from '../../server.js';
+import { notifyUser, notifyAdmins } from '../../utils/notify.js';
 
 // Product is stored one-collection-per-brand; brand is implied by the collection.
 const BRAND_MODELS = [
@@ -173,6 +174,21 @@ export const createOrder = async (req, res, next) => {
 
     if (createdOrders.length) {
       io.emit('order-created', { orderId: createdOrders[0]._id, orderNumber });
+
+      const totalPending = summary.reduce((s, i) => s + (i.pendingQty || 0), 0);
+      notifyUser(req.user._id, {
+        title: 'Order Placed',
+        message: totalPending > 0
+          ? `Your order ${orderNumber} is placed. ${totalPending} units could not be fulfilled and are on backorder.`
+          : `Your order ${orderNumber} has been placed successfully.`,
+        type: 'order',
+      });
+      const who = req.user.company || req.user.user || req.user.email;
+      notifyAdmins({
+        title: 'New Order Placed',
+        message: `${who} placed order ${orderNumber} (${summary.length} line item${summary.length === 1 ? '' : 's'})${totalPending > 0 ? ` — ${totalPending} units on backorder` : ''}.`,
+        type: 'order',
+      });
     }
 
     res.status(201).json({
@@ -213,6 +229,15 @@ export const updateOrderStatus = async (req, res, next) => {
     await order.save();
 
     io.emit('order-updated', { orderId: order._id, status });
+
+    // Tell the order's owner their status changed.
+    if (order.user) {
+      notifyUser(order.user, {
+        title: 'Order Update',
+        message: `Your order ${order.orderId} is now "${status}".`,
+        type: 'order',
+      });
+    }
 
     res.status(200).json({ success: true, data: order });
   } catch (error) {

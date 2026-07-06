@@ -43,7 +43,7 @@ export const createUser = async (req, res, next) => {
 // Admin updates a user, including changing the customer category at any time.
 export const updateUser = async (req, res, next) => {
   try {
-    const allowed = ['user', 'company', 'role', 'customerCategory', 'status', 'brandAccess', 'showMsilCode'];
+    const allowed = ['user', 'company', 'email', 'role', 'customerCategory', 'status', 'brandAccess', 'showMsilCode'];
     const updates = {};
     for (const key of allowed) {
       if (key in req.body) updates[key] = req.body[key];
@@ -51,6 +51,15 @@ export const updateUser = async (req, res, next) => {
 
     if (updates.customerCategory && !['MSIL', 'Non-MSIL'].includes(updates.customerCategory)) {
       return res.status(400).json({ success: false, message: 'Invalid customer category. Use "MSIL" or "Non-MSIL".' });
+    }
+
+    // If email is being changed, ensure it is not taken by another user.
+    if (updates.email) {
+      updates.email = updates.email.toLowerCase();
+      const clash = await User.findOne({ email: updates.email, _id: { $ne: req.params.id } });
+      if (clash) {
+        return res.status(400).json({ success: false, message: 'A user with this email already exists.' });
+      }
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });

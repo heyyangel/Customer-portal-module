@@ -1,7 +1,9 @@
 import dotenv from 'dotenv';
 import http from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import app from './app.js';
+import User from './models/User.js';
 import { connectDatabase } from './config/database.js';
 import { runReservationExpiryChecks } from './modules/reservations/reservationExpiryJob.js';
 import cron from 'node-cron';
@@ -21,9 +23,36 @@ export const io = new Server(server, {
   }
 });
 
+// Authenticate the socket handshake (same JWT as the REST API) so notifications
+// can be delivered to the right person. A client without a valid token still
+// connects, but joins no rooms and therefore receives nothing — it stays silent
+// rather than seeing everyone's notifications.
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token;
+    if (!token) return next();
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('role status');
+    if (user && user.status === 'Active') {
+      socket.data.userId = String(user._id);
+      socket.data.role = user.role;
+    }
+  } catch {
+    // Invalid/expired token → connect as anonymous (no rooms).
+  }
+  next();
+});
+
 io.on('connection', (socket) => {
-  console.log(`[Socket] Client connected: ${socket.id}`);
-  
+  const { userId, role } = socket.data || {};
+  console.log(`[Socket] Client connected: ${socket.id}${userId ? ` (user ${userId})` : ' (anonymous)'}`);
+
+  // Personal room for own notifications; admins additionally get the firehose.
+  if (userId) {
+    socket.join(`user:${userId}`);
+    if (role === 'Admin') socket.join('admins');
+  }
+
   socket.on('disconnect', () => {
     console.log(`[Socket] Client disconnected: ${socket.id}`);
   });

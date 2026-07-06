@@ -11,8 +11,21 @@ import {
 import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
 import { useThemeStore } from "../../store/themeStore";
+import { useNotificationStore } from "../../store/notificationStore";
 import { Drawer } from "../ui/Drawer";
 import toast from "react-hot-toast";
+
+const timeAgo = (iso) => {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min${mins === 1 ? "" : "s"} ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+};
 
 export const Navbar = () => {
   const { user, logout } = useUserStore();
@@ -36,35 +49,15 @@ export const Navbar = () => {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Mock ERP notifications
-  const notifications = [
-    {
-      id: 1,
-      text: "Order ORD-2026-002 has been pending approval for 2 hours.",
-      time: "12 mins ago",
-      read: false,
-    },
-    {
-      id: 2,
-      text: "Stock Alert: High Pressure Hydraulic Pump H-300 is below safety threshold (8 PCS remaining).",
-      time: "1 hr ago",
-      read: false,
-    },
-    {
-      id: 3,
-      text: "Bulk upload report ready: 5 records successfully validated, 2 contain errors.",
-      time: "3 hrs ago",
-      read: true,
-    },
-    {
-      id: 4,
-      text: "Pricing ledger update applied for Category Pipes & Tubing.",
-      time: "1 day ago",
-      read: true,
-    },
-  ];
-
+  const { notifications, fetchNotifications, markAllRead, markOneRead } =
+    useNotificationStore();
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Load the notification history once the user is known; the socket keeps it
+  // live from there on.
+  useEffect(() => {
+    if (user) fetchNotifications();
+  }, [user, fetchNotifications]);
 
   const handleLogout = () => {
     logout();
@@ -195,43 +188,51 @@ export const Navbar = () => {
       <Drawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
-        title="ERP Alerts & Messages"
+        title="Alerts & Messages"
       >
         <div className="flex flex-col gap-4">
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              className={`p-3 rounded-lg border flex flex-col gap-1 transition-all ${
-                n.read
-                  ? "bg-white border-slate-100 text-slate-500 animate-fade-in"
-                  : "bg-primary-50/20 border-primary-100 text-slate-800 animate-fade-in"
-              }`}
-            >
-              <div className="flex justify-between items-start gap-2">
-                <span
-                  className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                    n.read ? "bg-slate-300" : "bg-primary-600"
-                  }`}
-                />
-
-                <p className="text-xs font-semibold leading-relaxed flex-1">
-                  {n.text}
-                </p>
-              </div>
-              <span className="text-[10px] text-slate-400 font-bold self-end mt-1">
-                {n.time}
-              </span>
+          {notifications.length === 0 ? (
+            <div className="py-12 text-center text-xs font-semibold text-slate-400">
+              You're all caught up — no notifications yet.
             </div>
-          ))}
-          <button
-            onClick={() => {
-              toast.success("All notifications marked read");
-              setNotificationsOpen(false);
-            }}
-            className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 transition-colors mt-2"
-          >
-            Mark All as Read
-          </button>
+          ) : (
+            notifications.map((n) => (
+              <button
+                key={n._id}
+                onClick={() => markOneRead(n._id)}
+                className={`w-full text-left p-3 rounded-lg border flex flex-col gap-1 transition-all ${
+                  n.read
+                    ? "bg-white border-slate-100 text-slate-500 animate-fade-in"
+                    : "bg-primary-50/20 border-primary-100 text-slate-800 animate-fade-in"
+                }`}
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                      n.read ? "bg-slate-300" : "bg-primary-600"
+                    }`}
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-bold leading-relaxed">{n.title}</p>
+                    <p className="text-xs font-medium leading-relaxed text-slate-500">
+                      {n.message}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-bold self-end mt-1">
+                  {timeAgo(n.createdAt)}
+                </span>
+              </button>
+            ))
+          )}
+          {notifications.some((n) => !n.read) && (
+            <button
+              onClick={() => markAllRead()}
+              className="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 transition-colors mt-2"
+            >
+              Mark All as Read
+            </button>
+          )}
         </div>
       </Drawer>
     </header>

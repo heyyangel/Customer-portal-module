@@ -5,7 +5,7 @@ import { useUserStore } from '../../../store/userStore';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
-import { UserPlus, Shield, Mail, Loader2, Search, X } from 'lucide-react';
+import { UserPlus, Shield, Mail, Loader2, Search, X, Pencil } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORY_STYLES = {
@@ -23,6 +23,16 @@ const emptyForm = {
   status: 'Active',
 };
 
+// A single "access level" maps onto the underlying role + customerCategory fields.
+const ACCESS_LEVELS = ['Non-MSIL', 'MSIL', 'Admin'];
+
+const accessLevelOf = (u) => (u.role === 'Admin' ? 'Admin' : (u.customerCategory === 'MSIL' ? 'MSIL' : 'Non-MSIL'));
+
+const accessLevelToFields = (level) =>
+  level === 'Admin'
+    ? { role: 'Admin' }
+    : { role: 'Customer', customerCategory: level };
+
 export const UserManagement = () => {
   const { users, fetchUsers, loading, createUser, updateUser } = useAdminStore();
   const { user } = useUserStore();
@@ -30,6 +40,9 @@ export const UserManagement = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const isAdmin = user?.role === 'Admin';
 
@@ -51,6 +64,44 @@ export const UserManagement = () => {
   }
 
   const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setEditField = (field) => (e) => setEditForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const openEdit = (u) => {
+    setEditUser(u);
+    setEditForm({
+      user: u.user || '',
+      company: u.company || '',
+      email: u.email || '',
+      status: u.status || 'Active',
+      accessLevel: accessLevelOf(u),
+    });
+  };
+
+  const closeEdit = () => {
+    setEditUser(null);
+    setEditForm(null);
+  };
+
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    if (!editForm.email) {
+      toast.error('Email is required');
+      return;
+    }
+    setSavingEdit(true);
+    const { accessLevel, ...details } = editForm;
+    const res = await updateUser(editUser._id, {
+      ...details,
+      ...accessLevelToFields(accessLevel),
+    });
+    setSavingEdit(false);
+    if (res.success) {
+      toast.success('User updated');
+      closeEdit();
+    } else {
+      toast.error(res.error || 'Failed to update user');
+    }
+  };
 
   const handleCategoryChange = async (userId, customerCategory) => {
     const res = await updateUser(userId, { customerCategory });
@@ -121,18 +172,19 @@ export const UserManagement = () => {
                   <th className="px-6 py-4 font-bold text-slate-600">Role</th>
                   <th className="px-6 py-4 font-bold text-slate-600">Customer Category</th>
                   <th className="px-6 py-4 font-bold text-slate-600">Status</th>
+                  <th className="px-6 py-4 font-bold text-slate-600 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                       <Loader2 className="animate-spin inline-block mr-2" size={24} /> Loading users...
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                       {q ? `No users match "${search}".` : 'No users found.'}
                     </td>
                   </tr>
@@ -176,6 +228,12 @@ export const UserManagement = () => {
                           <span className={`px-2 py-1 text-xs font-bold rounded-full ${u.status === 'Active' ? 'bg-success-50 text-success-700' : 'bg-slate-100 text-slate-600'}`}>
                             {u.status || 'Active'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <Button size="sm" variant="outline" onClick={() => openEdit(u)}>
+                            <Pencil size={14} className="mr-1.5" />
+                            Edit
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -238,6 +296,48 @@ export const UserManagement = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Edit User modal */}
+      <Modal isOpen={!!editUser} onClose={closeEdit} title="Edit User">
+        {editForm && (
+          <form onSubmit={handleEditSave} className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Name">
+                <input value={editForm.user} onChange={setEditField('user')} className={inputCls} placeholder="Contact name" />
+              </Field>
+              <Field label="Company">
+                <input value={editForm.company} onChange={setEditField('company')} className={inputCls} placeholder="Company name" />
+              </Field>
+            </div>
+            <Field label="Email *">
+              <input type="email" value={editForm.email} onChange={setEditField('email')} className={inputCls} placeholder="customer@example.com" required />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Role">
+                <select value={editForm.accessLevel} onChange={setEditField('accessLevel')} className={inputCls}>
+                  {ACCESS_LEVELS.map((lvl) => (
+                    <option key={lvl} value={lvl}>{lvl}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Status">
+                <select value={editForm.status} onChange={setEditField('status')} className={inputCls}>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Suspended">Suspended</option>
+                </select>
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
+              <Button type="button" variant="outline" size="sm" onClick={closeEdit}>Cancel</Button>
+              <Button type="submit" variant="primary" size="sm" disabled={savingEdit}>
+                {savingEdit ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

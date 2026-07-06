@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { usersApi } from "../services/users";
+import { refreshSocketAuth } from "../services/socketService";
+import { useNotificationStore } from "./notificationStore";
 
 export const useUserStore = create((set) => ({
   user: null,
@@ -14,6 +16,7 @@ export const useUserStore = create((set) => ({
       
       const user = await usersApi.getCurrentUser();
       set({ user, loading: false });
+      refreshSocketAuth(); // rejoin socket rooms as the logged-in user
       return true;
     } catch (err) {
       set({ error: err.response?.data?.message || "Login failed", loading: false });
@@ -29,6 +32,7 @@ export const useUserStore = create((set) => ({
       
       const user = await usersApi.getCurrentUser();
       set({ user, loading: false });
+      refreshSocketAuth();
       return true;
     } catch (err) {
       set({ error: err.response?.data?.message || "Registration failed", loading: false });
@@ -56,6 +60,8 @@ export const useUserStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     set({ user: null });
+    useNotificationStore.getState().clear();
+    refreshSocketAuth(); // drop out of the user/admin rooms
   },
 }));
 

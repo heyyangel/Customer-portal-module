@@ -1,8 +1,7 @@
 import Reservation from '../../models/Reservation.js';
 import AuditLog from '../../models/AuditLog.js';
-import Notification from '../../models/Notification.js';
-import { io } from '../../server.js';
 import { sendEmail } from '../../utils/mailer.js';
+import { notifyUser } from '../../utils/notify.js';
 
 // Helper to log audit events
 const logSystemEvent = async (action, remarks) => {
@@ -20,16 +19,9 @@ const logSystemEvent = async (action, remarks) => {
   }
 };
 
-// Helper to create notifications
+// Deliver a reminder/expiry notification to the customer's own room.
 const sendSystemNotification = (userId, title, message) => {
-  Notification.create({
-    user: userId,
-    title,
-    message,
-    type: 'reservation'
-  }).then(notif => {
-    io.emit('notification-received', notif);
-  }).catch(err => console.error('[Notification error]', err));
+  notifyUser(userId, { title, message, type: 'reservation' });
 };
 
 export const runReservationExpiryChecks = async () => {

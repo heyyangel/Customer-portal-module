@@ -21,7 +21,7 @@ async function syncMsilCodes() {
     });
   }
 
-  console.log(Found  unique MSIL codes. Syncing...);
+  console.log('Found  unique MSIL codes. Syncing...');
 
   let inserted = 0;
   for (const code of msilSet) {
@@ -32,7 +32,7 @@ async function syncMsilCodes() {
     }
   }
 
-  console.log(Successfully inserted  missing MSIL codes!);
+  console.log('Successfully inserted  missing MSIL codes!');
   process.exit(0);
 }
 

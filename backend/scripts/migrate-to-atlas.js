@@ -1,14 +1,3 @@
-// One-off migration: copy every collection from the LOCAL MongoDB into Atlas.
-//
-// Usage (from backend/):
-//   node scripts/migrate-to-atlas.js "<ATLAS_URI_WITH_DB_NAME>"
-//
-// The source is your local erp_portal DB. The destination is the Atlas URI you
-// pass as the first argument (it MUST include the /erp_portal database name).
-//
-// Safe to re-run: documents are matched by _id and upserted, so existing docs
-// are updated rather than duplicated.
-
 import { MongoClient } from 'mongodb';
 
 const SOURCE_URI = process.env.SOURCE_URI || 'mongodb://localhost:27017/erp_portal';
@@ -20,7 +9,6 @@ if (!DEST_URI) {
   process.exit(1);
 }
 
-// Guard: make sure the destination actually names a database (not the default "test").
 const destDbInPath = /mongodb(\+srv)?:\/\/[^/]+\/([^/?]+)/.exec(DEST_URI)?.[2];
 if (!destDbInPath) {
   console.error('\n[migrate] The Atlas URI has no database name. Add /erp_portal before the "?":');
@@ -36,8 +24,8 @@ const run = async () => {
     await src.connect();
     await dest.connect();
 
-    const srcDb = src.db(); // db name comes from SOURCE_URI (erp_portal)
-    const destDb = dest.db(); // db name comes from DEST_URI (erp_portal)
+    const srcDb = src.db(); 
+    const destDb = dest.db();
 
     console.log(`[migrate] Source: ${srcDb.databaseName} @ localhost`);
     console.log(`[migrate] Destination: ${destDb.databaseName} @ Atlas\n`);

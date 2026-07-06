@@ -1,29 +1,48 @@
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
-import { useUIStore } from '../store/uiStore';
+import { useNotificationStore } from '../store/notificationStore';
 
 const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SOCKET_URL = rawApiUrl.replace(/\/+$/, '');
 
 let socket;
 
+const authToken = () => ({ token: localStorage.getItem('token') || null });
+
 export const initSocket = () => {
-  if (!socket) {
-    socket = io(SOCKET_URL);
+  if (socket) return socket;
 
-    socket.on('connect', () => {
-      console.log('Connected to real-time notification server');
-    });
+  // The token is sent in the handshake so the server can place this client into
+  // its personal `user:<id>` room (and `admins` room for admins).
+  socket = io(SOCKET_URL, { auth: authToken() });
 
-    socket.on('order-created', (data) => {
-      toast.success(`New order ${data.orderNumber} placed!`);
-      // Could also update notifications state here
-    });
+  socket.on('connect', () => {
+    console.log('[socket] connected to real-time notification server');
+  });
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from notification server');
-    });
-  }
+  socket.on('disconnect', () => {
+    console.log('[socket] disconnected');
+  });
+
+  // The single source of truth for real-time alerts. Every persisted server-side
+  // notification (order placed/booked/confirmed, backorder, status change,
+  // expiry reminders...) is pushed here for exactly the user(s) it targets.
+  socket.on('notification-received', (notif) => {
+    if (!notif) return;
+    useNotificationStore.getState().addNotification(notif);
+    toast(notif.title || notif.message, { icon: '🔔' });
+  });
+
+  return socket;
+};
+
+// Re-run the handshake with the current token after login/logout so the server
+// moves this socket into (or out of) the right rooms.
+export const refreshSocketAuth = () => {
+  if (!socket) return initSocket();
+  socket.auth = authToken();
+  socket.disconnect().connect();
+  return socket;
 };
 
 export const getSocket = () => socket;
