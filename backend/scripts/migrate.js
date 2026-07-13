@@ -132,7 +132,6 @@ const mapProductStatus = (val) => {
  */
 const mapOrderStatus = (val) => {
   const s = String(val || '').trim().toLowerCase();
-  if (s === 'approved')   return 'Approved';
   if (s === 'dispatched') return 'Dispatched';
   if (s === 'cancelled')  return 'Cancelled';
   if (s === 'delivered')  return 'Delivered';

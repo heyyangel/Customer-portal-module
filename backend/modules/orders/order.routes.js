@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, getOrders, getOrderById, updateOrderStatus, assignOrder } from './order.controller.js';
+import { createOrder, getOrders, getOrderById, updateOrderStatus } from './order.controller.js';
 import { protect } from '../../middlewares/auth.js';
 import { authorize } from '../../middlewares/rbac.js';
 import { auditLogger } from '../../middlewares/auditLogger.js';
@@ -12,7 +12,6 @@ router.route('/')
 
 router.get('/:id', protect, getOrderById);
 
-router.put('/:id/status', protect, authorize('approve_orders'), updateOrderStatus);
-router.put('/:id/assign', protect, authorize('approve_orders'), assignOrder);
+router.put('/:id/status', protect, authorize('manage_orders'), updateOrderStatus);
 
 export default router;

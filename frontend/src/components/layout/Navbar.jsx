@@ -8,6 +8,7 @@ import {
   Search,
   Menu,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useUserStore } from "../../store/userStore";
 import { useUIStore } from "../../store/uiStore";
 import { useThemeStore } from "../../store/themeStore";
@@ -28,6 +29,7 @@ const timeAgo = (iso) => {
 };
 
 export const Navbar = () => {
+  const navigate = useNavigate();
   const { user, logout } = useUserStore();
   const {
     sidebarOpen,
@@ -162,17 +164,16 @@ export const Navbar = () => {
                   {user?.company}
                 </p>
               </div>
-              <a
-                href="#profile"
-                className="flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toast("Profile details page coming soon!", { icon: "🧑‍💼" });
+              <button
+                className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                onClick={() => {
+                  setProfileDropdownOpen(false);
+                  navigate("/settings");
                 }}
               >
                 <UserIcon size={14} className="text-slate-400" />
                 My Profile
-              </a>
+              </button>
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-semibold text-error-500 hover:bg-error-50/50 transition-colors text-left"

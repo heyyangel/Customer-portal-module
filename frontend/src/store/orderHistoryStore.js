@@ -10,15 +10,14 @@ const computeMetrics = (orders) => {
   ).getTime();
   const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
+  // Legacy 'Booked' records count as the first stage (PO Received).
+  const isPoReceived = (s) => s === "PO Received" || s === "Booked";
   return {
     total: orders.length,
-    pending: orders.filter((o) => o.status === "Booked").length,
-    approved: orders.filter((o) => o.status === "Approved").length,
-    ready: 0,
+    poReceived: orders.filter((o) => isPoReceived(o.status)).length,
+    ready: orders.filter((o) => o.status === "Ready for Dispatch").length,
     dispatched: orders.filter((o) => o.status === "Dispatched").length,
     completed: orders.filter((o) => o.status === "Delivered").length,
-    cancelled: orders.filter((o) => o.status === "Cancelled").length,
-    rejected: 0,
     today: orders.filter((o) => new Date(o.date).getTime() >= today).length,
     thisMonth: orders.filter((o) => new Date(o.date).getTime() >= thisMonth)
       .length,
@@ -28,22 +27,20 @@ const computeMetrics = (orders) => {
 export const useOrderHistoryStore = create((set, get) => ({
   allOrders: [],
   orders: [],
-  filters: { status: "all", customer: "all", orderType: "all" },
+  filters: { status: "all", customer: "all", dateOn: "", dateFrom: "", dateTo: "" },
   searchQuery: "",
   sortBy: "date",
   sortOrder: "desc",
   page: 1,
   limit: 15,
   selectedOrder: null,
+  selectedIds: [], // booking orderNumbers selected for export
   metrics: {
     total: 0,
-    pending: 0,
-    approved: 0,
+    poReceived: 0,
     ready: 0,
     dispatched: 0,
     completed: 0,
-    cancelled: 0,
-    rejected: 0,
     today: 0,
     thisMonth: 0,
   },
@@ -87,16 +84,41 @@ export const useOrderHistoryStore = create((set, get) => ({
     if (filters.customer !== "all") {
       result = result.filter((o) => o.customer === filters.customer);
     }
-    if (filters.orderType !== "all") {
-      result = result.filter((o) => o.orderType === filters.orderType);
+
+    // Local-midnight boundary for a "YYYY-MM-DD" date-input value. Parsing the
+    // string with new Date() would give UTC midnight and shift the day in
+    // some timezones, so build the Date from its parts instead.
+    const dayStart = (ymd) => {
+      const [y, m, d] = ymd.split("-").map(Number);
+      return new Date(y, m - 1, d).getTime();
+    };
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    // Single-day filter takes precedence over the range when both are set.
+    if (filters.dateOn) {
+      const start = dayStart(filters.dateOn);
+      const end = start + DAY_MS;
+      result = result.filter((o) => {
+        const t = new Date(o.date).getTime();
+        return t >= start && t < end;
+      });
+    } else {
+      if (filters.dateFrom) {
+        const start = dayStart(filters.dateFrom);
+        result = result.filter((o) => new Date(o.date).getTime() >= start);
+      }
+      if (filters.dateTo) {
+        const end = dayStart(filters.dateTo) + DAY_MS;
+        result = result.filter((o) => new Date(o.date).getTime() < end);
+      }
     }
 
     result.sort((a, b) => {
       let cmp = 0;
       if (sortBy === "date")
         cmp = new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === "value") cmp = a.grandTotal - b.grandTotal;
-      if (sortBy === "status") cmp = a.status.localeCompare(b.status);
+      if (sortBy === "value") cmp = (a.grandTotal || 0) - (b.grandTotal || 0);
+      if (sortBy === "status") cmp = String(a.status || "").localeCompare(String(b.status || ""));
       return sortOrder === "asc" ? cmp : -cmp;
     });
 
@@ -121,12 +143,30 @@ export const useOrderHistoryStore = create((set, get) => ({
   setPage: (page) => set({ page }),
   setSelectedOrder: (order) => set({ selectedOrder: order }),
 
-  updateOrderStatus: async (id, status, remarks) => {
+  // Multi-select for export (keyed by booking orderNumber).
+  toggleSelectId: (id) =>
+    set((state) => ({
+      selectedIds: state.selectedIds.includes(id)
+        ? state.selectedIds.filter((x) => x !== id)
+        : [...state.selectedIds, id],
+    })),
+  toggleSelectAll: () =>
+    set((state) => {
+      const ids = state.orders.map((o) => o.orderNumber);
+      const allSelected = ids.length > 0 && ids.every((id) => state.selectedIds.includes(id));
+      return { selectedIds: allSelected ? [] : ids };
+    }),
+  clearSelection: () => set({ selectedIds: [] }),
+
+  // A booking row can represent several underlying line-item Order documents
+  // (lineItemIds); the status change must apply to all of them together.
+  updateOrderStatus: async (booking, status, remarks) => {
+    const ids = booking?.lineItemIds?.length ? booking.lineItemIds : [booking?.id];
     try {
-      await ordersApi.updateStatus(id, status, remarks);
+      await ordersApi.updateStatus(ids, status, remarks);
       await get().fetchOrders();
-      // Keep the open drawer in sync with the refreshed order.
-      const updated = get().allOrders.find((o) => o.id === id);
+      // Keep the open drawer in sync with the refreshed booking.
+      const updated = get().allOrders.find((o) => o.orderNumber === booking.orderNumber);
       if (updated) set({ selectedOrder: updated });
       return { success: true };
     } catch (err) {
@@ -136,7 +176,7 @@ export const useOrderHistoryStore = create((set, get) => ({
 
   refresh: async () => {
     set({
-      filters: { status: "all", customer: "all", orderType: "all" },
+      filters: { status: "all", customer: "all", dateOn: "", dateFrom: "", dateTo: "" },
       searchQuery: "",
       sortBy: "date",
       sortOrder: "desc",

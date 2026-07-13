@@ -1,18 +1,20 @@
 import { CheckCircle2, Circle, Check, Ban } from "lucide-react";
 
-// Stages map to the real Order status enum (Booked → Pending Approval, etc.).
+// Stages map to the admin-managed booking lifecycle.
 const LIFECYCLE = [
-  { key: "Booked", label: "Pending Approval" },
-  { key: "Approved", label: "Approved" },
+  { key: "PO Received", label: "PO Received" },
+  { key: "Ready for Dispatch", label: "Ready for Dispatch" },
   { key: "Dispatched", label: "Dispatched" },
   { key: "Delivered", label: "Delivered" },
 ];
 
-const TERMINAL = ["Cancelled", "Rejected"];
+const TERMINAL = ["Cancelled"];
 
 export const OrderTimeline = ({ currentStatus }) => {
-  const isTerminal = TERMINAL.includes(currentStatus);
-  const currentIdx = LIFECYCLE.findIndex((s) => s.key === currentStatus);
+  // Legacy 'Booked' records map onto the first stage.
+  const status = currentStatus === "Booked" ? "PO Received" : currentStatus;
+  const isTerminal = TERMINAL.includes(status);
+  const currentIdx = LIFECYCLE.findIndex((s) => s.key === status);
 
   return (
     <div className="flex flex-col relative py-2">
@@ -71,7 +73,7 @@ export const OrderTimeline = ({ currentStatus }) => {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold text-error-700">{currentStatus}</span>
-            <span className="text-[11px] font-semibold text-error-500 mt-0.5">Order closed</span>
+            <span className="text-[11px] font-semibold text-error-500 mt-0.5">Booking closed</span>
           </div>
         </div>
       )}

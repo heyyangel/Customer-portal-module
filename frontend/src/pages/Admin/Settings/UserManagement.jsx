@@ -5,7 +5,7 @@ import { useUserStore } from '../../../store/userStore';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
-import { UserPlus, Shield, Mail, Loader2, Search, X, Pencil } from 'lucide-react';
+import { UserPlus, Shield, Mail, Loader2, Search, X, Pencil, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CATEGORY_STYLES = {
@@ -34,7 +34,7 @@ const accessLevelToFields = (level) =>
     : { role: 'Customer', customerCategory: level };
 
 export const UserManagement = () => {
-  const { users, fetchUsers, loading, createUser, updateUser } = useAdminStore();
+  const { users, fetchUsers, loading, createUser, updateUser, resetUserPassword } = useAdminStore();
   const { user } = useUserStore();
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -43,6 +43,9 @@ export const UserManagement = () => {
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [pwUser, setPwUser] = useState(null);
+  const [newPw, setNewPw] = useState('');
+  const [savingPw, setSavingPw] = useState(false);
 
   const isAdmin = user?.role === 'Admin';
 
@@ -100,6 +103,29 @@ export const UserManagement = () => {
       closeEdit();
     } else {
       toast.error(res.error || 'Failed to update user');
+    }
+  };
+
+  const openResetPw = (u) => {
+    setPwUser(u);
+    setNewPw('');
+  };
+
+  const handleResetPw = async (e) => {
+    e.preventDefault();
+    if (newPw.length < 5) {
+      toast.error('Password must be at least 5 characters');
+      return;
+    }
+    setSavingPw(true);
+    const res = await resetUserPassword(pwUser._id, newPw);
+    setSavingPw(false);
+    if (res.success) {
+      toast.success(`Password reset for ${pwUser.email}`);
+      setPwUser(null);
+      setNewPw('');
+    } else {
+      toast.error(res.error || 'Failed to reset password');
     }
   };
 
@@ -230,10 +256,16 @@ export const UserManagement = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <Button size="sm" variant="outline" onClick={() => openEdit(u)}>
-                            <Pencil size={14} className="mr-1.5" />
-                            Edit
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button size="sm" variant="outline" onClick={() => openEdit(u)}>
+                              <Pencil size={14} className="mr-1.5" />
+                              Edit
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => openResetPw(u)} title="Reset password">
+                              <KeyRound size={14} className="mr-1.5" />
+                              Password
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -334,6 +366,36 @@ export const UserManagement = () => {
               <Button type="button" variant="outline" size="sm" onClick={closeEdit}>Cancel</Button>
               <Button type="submit" variant="primary" size="sm" disabled={savingEdit}>
                 {savingEdit ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* Reset Password modal */}
+      <Modal isOpen={!!pwUser} onClose={() => setPwUser(null)} title="Reset Password" size="sm">
+        {pwUser && (
+          <form onSubmit={handleResetPw} className="flex flex-col gap-4">
+            <p className="text-sm text-slate-600">
+              Set a new password for{' '}
+              <span className="font-bold text-slate-800">{pwUser.user || pwUser.company || pwUser.email}</span>.
+              The user can sign in with it immediately.
+            </p>
+            <Field label="New Password *">
+              <input
+                type="text"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                className={inputCls}
+                placeholder="At least 5 characters"
+                autoFocus
+                required
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setPwUser(null)}>Cancel</Button>
+              <Button type="submit" variant="primary" size="sm" disabled={savingPw}>
+                {savingPw ? 'Resetting...' : 'Reset Password'}
               </Button>
             </div>
           </form>

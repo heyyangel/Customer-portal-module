@@ -1,10 +1,9 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Users, ToggleLeft, Database, Key } from "lucide-react";
+import { Users, Boxes, Key } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { useUserStore } from "../../store/userStore";
-import toast from "react-hot-toast";
 
 export const Admin = () => {
   const navigate = useNavigate();
@@ -17,19 +16,16 @@ export const Admin = () => {
       path: "/admin/users",
     },
     {
-      name: "Feature Flag Toggles",
-      desc: "Enable/disable beta portal components.",
-      icon: ToggleLeft,
-    },
-    {
-      name: "Database Operations",
-      desc: "Sync catalog files or check transaction logs.",
-      icon: Database,
-    },
-    {
       name: "Access Permissions",
-      desc: "Manage role-based policies (RBAC).",
+      desc: "Manage role-based access via the permission matrix.",
       icon: Key,
+      path: "/admin/permissions",
+    },
+    {
+      name: "Inventory",
+      desc: "Browse live stock across all brands.",
+      icon: Boxes,
+      path: "/inventory",
     },
   ];
 
@@ -51,16 +47,7 @@ export const Admin = () => {
           <Card
             key={card.name}
             className="hover:border-primary-300 transition-colors cursor-pointer select-none"
-            onClick={() =>
-              card.path
-                ? navigate(card.path)
-                : toast.error(
-                    `Admin module "${card.name}" is locked. Verify administrator token key.`,
-                    {
-                      icon: "🔒",
-                    },
-                  )
-            }
+            onClick={() => navigate(card.path)}
           >
             <CardHeader className="flex flex-row items-center gap-4">
               <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-primary-600 shadow-sm">

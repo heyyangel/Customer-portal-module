@@ -6,55 +6,67 @@ import { useUserStore } from "../../store/userStore";
 import toast from "react-hot-toast";
 
 import { OrderTable } from "../../components/tables/OrderTable";
-import { BackordersTable } from "../../components/backorders/BackordersTable";
 import { ProductSearchDropdown } from "../../components/ui";
-import { Package, Hash, Tag, MapPin, MessageSquare, Receipt, ArrowRight } from "lucide-react";
+import { Modal } from "../../components/ui/Modal";
+import { Button } from "../../components/ui/Button";
+import { Package, Hash, Tag, MessageSquare, Receipt, ArrowRight, AlertTriangle, Clock, PackageCheck } from "lucide-react";
+
+const ValidityNotice = () => (
+  <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+    <Clock size={14} className="text-red-500 shrink-0" />
+    <p className="text-[11px] text-red-700 leading-relaxed">
+      Booking valid for <span className="font-semibold">7 days</span>. Items are released if no PO is received.
+    </p>
+  </div>
+);
 
 export const CustomerOrders = () => {
   const navigate = useNavigate();
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [productSearchVal, setProductSearchVal] = useState("");
+  const [showIndentConfirm, setShowIndentConfirm] = useState(false);
+  const [showBookingConfirm, setShowBookingConfirm] = useState(false);
+  const [summary, setSummary] = useState(null);
 
   const {
     items: cartItems,
-    pendingItems,
     addItem,
     removeItem,
+    removeItems,
     updateQuantity,
     fetchReservations,
-    fetchPendingReservations,
     confirmBooking,
     loading,
     header,
     setPOHeader,
-    getEstimatedValue,
-    getTax,
-    getGrandTotal,
     getTotalQuantity,
   } = useCartStore();
 
   const { user } = useUserStore();
-  const canViewPrice = user?.role === 'Admin'; // prices are admin-only
+
+  // MOQ is enforced only for Non-MSIL customers; MSIL customers are exempt.
+  const isMsil = user?.customerCategory === "MSIL";
+  const productMoq = Number(selectedProduct?.moq) || 0;
+  const moqApplies = !isMsil && productMoq > 1;
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
-      quantity: 1,
+      quantity: 0,
     },
   });
 
   const watchQuantity = watch("quantity");
 
-  // Load existing reservations and pending backorders on mount
+  // Load existing reservations on mount
   useEffect(() => {
     fetchReservations();
-    fetchPendingReservations();
-  }, [fetchReservations, fetchPendingReservations]);
+  }, [fetchReservations]);
 
   const handleProductSelect = (product) => {
     setSelectedProduct(product);
     if (product) {
       setProductSearchVal(product.code);
-      setValue("quantity", 1);
+      setValue("quantity", 0);
     } else {
       setProductSearchVal("");
     }
@@ -66,14 +78,19 @@ export const CustomerOrders = () => {
       return;
     }
 
-    const moq = selectedProduct.moq || 1;
-    if (data.quantity % moq !== 0) {
-      toast.error(`Order quantity must be a multiple of ${moq}`, { icon: "❌" });
+    if (!Number.isInteger(data.quantity) || data.quantity < 1) {
+      toast.error("Enter a valid whole-number quantity of at least 1", { icon: "❌" });
+      return;
+    }
+
+    // Non-MSIL customers must book in multiples of the product's MOQ.
+    if (moqApplies && data.quantity % productMoq !== 0) {
+      toast.error(`Quantity must be a multiple of the MOQ (${productMoq})`, { icon: "❌" });
       return;
     }
 
     // Over-booking is allowed: any quantity may be booked even if it exceeds
-    // available stock. Unfulfillable quantity is moved to Pending at confirmation.
+    // available stock. Unfulfillable quantity becomes a Pending Indent at confirmation.
 
     const res = await addItem(selectedProduct, data.quantity);
 
@@ -81,7 +98,7 @@ export const CustomerOrders = () => {
       toast.success("Product reserved and added to Selection List!");
       setSelectedProduct(null);
       setProductSearchVal("");
-      setValue("quantity", 1);
+      setValue("quantity", 0);
     } else {
       toast.error(res.error || "Failed to reserve item");
     }
@@ -101,32 +118,85 @@ export const CustomerOrders = () => {
     toast.success("Reservation cancelled and stock released");
   };
 
+  const handleBulkRemove = async (reservationIds) => {
+    const res = await removeItems(reservationIds);
+    if (res.success) {
+      toast.success(`${res.removed} item${res.removed === 1 ? "" : "s"} removed from Selection List`);
+    } else {
+      const detail = res.failed.map((f) => `${f.code}: ${f.error}`).slice(0, 3).join("; ");
+      toast.error(
+        `${res.removed} removed, ${res.failed.length} failed — ${detail}${res.failed.length > 3 ? "…" : ""}`,
+        { duration: 7000 },
+      );
+    }
+  };
+
+  // Split each cart line into the quantity that can be booked from stock now
+  // and the shortfall that becomes a Pending Indent at confirmation.
+  const computeReview = (items) => {
+    const available = [];
+    const pending = [];
+    items.forEach((item) => {
+      const avl = item.product.availableStock ?? 0;
+      const req = item.orderQuantity;
+      const bookNow = Math.min(req, avl);
+      const short = Math.max(0, req - avl);
+      if (bookNow > 0) {
+        available.push({ code: item.product.code, requested: req, bookable: bookNow });
+      }
+      if (short > 0) {
+        pending.push({ code: item.product.code, requested: req, available: avl, pending: short });
+      }
+    });
+    return { available, pending };
+  };
+
+  const review = computeReview(cartItems);
+  const indentLines = review.pending;
+
+  // "Raise Indent" from a Selection List row: opens the Review Indent popup so
+  // the user can confirm the booking (the shortfall becomes a Pending Indent).
+  const handleRaiseIndent = () => {
+    setShowIndentConfirm(true);
+  };
+
+  const runConfirmBooking = async () => {
+    setShowIndentConfirm(false);
+    setShowBookingConfirm(false);
+    try {
+      const result = await confirmBooking();
+      const totals = result?.totals;
+      // Show the confirmation summary popup with confirmed vs pending-indent counts.
+      setSummary({
+        orderId: result?.orderId || "",
+        poNumber: result?.poNumber || "",
+        indentId: result?.indentId || "",
+        confirmed: totals?.totalConfirmed ?? 0,
+        pending: totals?.totalPending ?? 0,
+        lines: (result?.summary || []).length,
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm booking.");
+    }
+  };
+
   const handleOrderSubmission = async () => {
     if (cartItems.length === 0) {
       toast.error("No reserved items to confirm.");
       return;
     }
 
-    try {
-      const result = await confirmBooking();
-      const totals = result?.totals;
-
-      if (totals?.totalPending > 0) {
-        toast.success(
-          `Confirmed ${totals.totalConfirmed} units. ${totals.totalPending} units moved to Pending (backorder).`,
-          { icon: "📦", duration: 6000 }
-        );
-      } else {
-        toast.success("Booking confirmed! Orders sent to Approval workflow.", { icon: "🚀" });
-      }
-      navigate("/orders/history?status=pending");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to confirm booking.");
+    // Refresh reservations so the shortfall check runs on current stock, then
+    // show the Review Indent popup before finalising the booking.
+    await fetchReservations();
+    const freshReview = computeReview(useCartStore.getState().items);
+    if (freshReview.pending.length > 0) {
+      setShowIndentConfirm(true);
+      return;
     }
+    // No pending indent — still confirm the 7-day validity note before booking.
+    setShowBookingConfirm(true);
   };
-
-  const remainingQty = selectedProduct ? selectedProduct.availableStock - (watchQuantity || 0) : 0;
-  const moq = selectedProduct?.moq || 1;
 
   return (
     <div className="w-full h-auto p-4 lg:p-4 bg-slate-50/50 font-sans">
@@ -152,7 +222,7 @@ export const CustomerOrders = () => {
               </label>
               <div className="rounded-xl shadow-sm transition-colors focus-within:ring-2 focus-within:ring-[#1a5b9e]/20">
                 <ProductSearchDropdown
-                  placeholder="Search Products..."
+                  placeholder="Search by MSIL Code or SKU Code..."
                   value={productSearchVal}
                   onChange={handleProductSelect}
                 />
@@ -168,8 +238,8 @@ export const CustomerOrders = () => {
                     <Hash size={14} className="text-[#1a5b9e]" />
                     <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">MSIL Code</span>
                   </div>
-                  <span className={`text-sm font-black ${selectedProduct && selectedProduct.msilCode ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {selectedProduct ? (selectedProduct.msilCode || "No MSIL Code") : "---"}
+                  <span className="text-sm font-black text-slate-800">
+                    {selectedProduct?.msilCode || ""}
                   </span>
                 </div>
               )}
@@ -186,30 +256,33 @@ export const CustomerOrders = () => {
               </div>
             </div>
 
-            {/* STOCK AVAILABILITY CARD */}
+            {/* STOCK AVAILABILITY — shown just above Booking Qty. MOQ column is
+                shown only for Non-MSIL customers; MSIL customers have no MOQ. */}
             <div className="flex flex-col p-4 bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-xl border border-slate-200/80 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 left-0 w-1 h-full bg-[#1a5b9e]/80 rounded-l-xl"></div>
               <div className="flex items-center gap-2 mb-3">
                 <Package size={16} className="text-[#1a5b9e]" />
                 <span className="text-xs font-bold text-slate-700 tracking-widest uppercase">Stock Availability</span>
               </div>
-              <div className="grid grid-cols-3 text-center divide-x divide-slate-200/80">
+              <div className={`grid ${isMsil ? "grid-cols-2" : "grid-cols-3"} text-center divide-x divide-slate-200/80`}>
                 <div className="flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Available</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Available (AVL)</span>
                   <span className={`text-xl font-black ${selectedProduct ? "text-[#1a5b9e]" : "text-slate-300"}`}>
-                    {selectedProduct ? selectedProduct.availableStock : "-"}
+                    {selectedProduct ? (selectedProduct.availableStock ?? 0) : "-"}
                   </span>
                 </div>
-                <div className="flex flex-col items-center justify-center">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">MOQ</span>
-                  <span className={`text-xl font-black ${selectedProduct ? "text-[#1a5b9e]" : "text-slate-300"}`}>
-                    {selectedProduct ? moq : "-"}
-                  </span>
-                </div>
+                {!isMsil && (
+                  <div className="flex flex-col items-center justify-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">MOQ</span>
+                    <span className={`text-xl font-black ${selectedProduct ? "text-[#1a5b9e]" : "text-slate-300"}`}>
+                      {selectedProduct ? (productMoq > 1 ? productMoq : "—") : "-"}
+                    </span>
+                  </div>
+                )}
                 <div className="flex flex-col items-center justify-center">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Remaining</span>
                   <span className={`text-xl font-black ${selectedProduct ? "text-slate-800" : "text-slate-300"}`}>
-                    {selectedProduct ? remainingQty : "-"}
+                    {selectedProduct ? (selectedProduct.availableStock ?? 0) - (Number.isInteger(watchQuantity) ? watchQuantity : 0) : "-"}
                   </span>
                 </div>
               </div>
@@ -218,29 +291,42 @@ export const CustomerOrders = () => {
             {/* QTY INPUT */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">
-                Order Qty
+                Booking Qty {moqApplies && <span className="text-slate-400 normal-case">(MOQ {productMoq})</span>}
               </label>
               <div className="relative">
                 <input
-                  {...register("quantity", { 
+                  {...register("quantity", {
                     valueAsNumber: true,
-                    validate: value => (value % moq === 0) || `Quantity must be a multiple of ${moq}`
+                    validate: value => {
+                      if (!Number.isInteger(value) || value < 1) return "Enter a whole-number quantity of at least 1";
+                      if (moqApplies && value % productMoq !== 0) return `Quantity must be a multiple of the MOQ (${productMoq})`;
+                      return true;
+                    },
                   })}
                   type="number"
-                  step={moq}
-                  min={moq}
+                  step={moqApplies ? productMoq : 1}
+                  min={moqApplies ? productMoq : 1}
                   placeholder="Enter Qty"
                   className="w-full px-4 py-3 border border-slate-200/80 rounded-xl outline-none focus:border-[#1a5b9e] focus:ring-2 focus:ring-[#1a5b9e]/20 text-slate-800 font-bold placeholder-slate-300 transition-all bg-slate-50/50 focus:bg-white"
                   disabled={!selectedProduct}
                 />
               </div>
               {errors.quantity && <span className="text-xs text-red-500 mt-1 font-semibold">{errors.quantity.message}</span>}
-              {selectedProduct && watchQuantity % moq !== 0 && (
-                <span className="text-xs text-red-500 mt-1 font-semibold">Quantity must be a multiple of {moq}</span>
+              {/* MOQ reminder for Non-MSIL: quantity must be at least, and a multiple of, the MOQ. */}
+              {moqApplies && selectedProduct && (
+                Number.isInteger(watchQuantity) && watchQuantity >= 1 && watchQuantity % productMoq !== 0 ? (
+                  <span className="text-xs text-red-500 mt-1 font-semibold">
+                    Enter a quantity equal to or more than the MOQ ({productMoq}), in multiples of {productMoq}.
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-400 mt-1 font-medium">
+                    Minimum {productMoq} units — enter in multiples of {productMoq}.
+                  </span>
+                )
               )}
-              {selectedProduct && watchQuantity > selectedProduct.availableStock && watchQuantity % moq === 0 && (
+              {selectedProduct && watchQuantity > selectedProduct.availableStock && (
                 <span className="text-xs text-amber-600 mt-1 font-semibold">
-                  Exceeds available stock ({selectedProduct.availableStock}). {watchQuantity - selectedProduct.availableStock} unit(s) will go to Pending on confirmation.
+                  Exceeds available quantity (AVL {selectedProduct.availableStock}). {watchQuantity - selectedProduct.availableStock} unit(s) will move to Pending Indent on confirmation.
                 </span>
               )}
             </div>
@@ -248,7 +334,7 @@ export const CustomerOrders = () => {
             {/* ADD TO LIST BUTTON */}
             <button
               type="submit"
-              disabled={loading || !selectedProduct || watchQuantity <= 0 || watchQuantity % moq !== 0}
+              disabled={loading || !selectedProduct || !Number.isInteger(watchQuantity) || watchQuantity < 1 || (moqApplies && watchQuantity % productMoq !== 0)}
               className="w-full py-3.5 mt-2 bg-gradient-to-r from-[#1a5b9e] to-[#15467a] hover:from-[#15467a] hover:to-[#0f345a] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed tracking-wider text-sm active:scale-[0.98]"
             >
               <span className="text-lg font-light leading-none mb-0.5">+</span> ADD TO LIST
@@ -274,6 +360,9 @@ export const CustomerOrders = () => {
                 items={cartItems}
                 onUpdateQty={handleInlineQtyChange}
                 onRemoveItem={handleRemoveCartItem}
+                onBulkRemove={handleBulkRemove}
+                onRaiseIndent={handleRaiseIndent}
+                enforceMoq={!isMsil}
               />
             </div>
 
@@ -282,19 +371,6 @@ export const CustomerOrders = () => {
               {/* ORDER DETAILS & FINANCIAL SUMMARY CARDS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="flex flex-col gap-4 bg-slate-50/80 border border-slate-200/60 rounded-xl p-5 shadow-sm">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <MapPin size={14} className="text-slate-400" />
-                      <label className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">Delivery Location</label>
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="e.g. Warehouse A, New Delhi"
-                      value={header.deliveryLocation}
-                      onChange={(e) => setPOHeader({ deliveryLocation: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-slate-200/80 rounded-lg outline-none focus:border-[#1a5b9e] focus:ring-2 focus:ring-[#1a5b9e]/20 text-sm text-slate-800 font-semibold bg-white transition-all shadow-sm"
-                    />
-                  </div>
                   <div className="flex flex-col">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <MessageSquare size={14} className="text-slate-400" />
@@ -324,23 +400,6 @@ export const CustomerOrders = () => {
                       <span>Total Quantity:</span>
                       <span className="text-white bg-slate-700/50 px-2 py-0.5 rounded-md">{getTotalQuantity()}</span>
                     </div>
-                    {canViewPrice && (
-                      <>
-                        <div className="flex justify-between text-xs font-bold text-slate-400 mb-2.5">
-                          <span>Est. Value:</span>
-                          <span className="text-white">₹{getEstimatedValue().toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-bold text-slate-400 mb-3">
-                          <span>Tax (18%):</span>
-                          <span className="text-white">₹{getTax().toLocaleString()}</span>
-                        </div>
-                        <div className="border-t border-slate-600/80 border-dashed my-3"></div>
-                        <div className="flex justify-between items-center text-sm font-black text-emerald-600">
-                          <span className="tracking-widest">GRAND TOTAL:</span>
-                          <span className="text-xl">₹{getGrandTotal().toLocaleString()}</span>
-                        </div>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
@@ -354,46 +413,185 @@ export const CustomerOrders = () => {
                 >
                   <div className="flex flex-col text-left">
                     <span className="tracking-widest text-sm mb-0.5">{loading ? "CONFIRMING..." : "CONFIRM BOOKING"}</span>
-                    <span className="text-[10px] text-green-100 font-medium tracking-wide uppercase opacity-90">{loading ? "Please wait" : "Submit to ERP Approval Workflow"}</span>
+                    <span className="text-[10px] text-green-100 font-medium tracking-wide uppercase opacity-90">{loading ? "Please wait" : "Submit Booking to ERP"}</span>
                   </div>
                   <ArrowRight size={24} className="ml-2 opacity-80" />
                 </button>
 
-                <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5 font-medium leading-relaxed px-4">
-                  <span>⏳</span> Note : Booking valid for <span className="font-bold text-slate-500">7 Days only.</span>Items will be released if no PO is received.
-                </p>
+                <ValidityNotice />
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* PENDING BACKORDERS SECTION — only for customers with their own backorders,
-          not on the admin's booking page (admins track backorders on the dashboard/Backorders page). */}
-      {user?.role !== 'Admin' && pendingItems && pendingItems.length > 0 && (
-        <div className="mt-8 bg-white p-6 rounded-2xl border border-amber-200/70 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500"></div>
-
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <Package size={18} className="text-amber-500" /> Pending Backorders
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Quantities that could not be fulfilled at confirmation — awaiting fresh stock.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate("/orders/backorders")}
-              className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-full uppercase tracking-widest transition-all"
-            >
-              View all ({pendingItems.length})
-            </button>
+      {/* REVIEW INDENT POPUP — available-for-booking vs pending-indent items */}
+      <Modal
+        isOpen={showIndentConfirm}
+        onClose={() => setShowIndentConfirm(false)}
+        title="Review Indent"
+        size="lg"
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <AlertTriangle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Some items exceed the available quantity. Review what will be booked now versus
+              what becomes a <span className="font-bold">Pending Indent</span> (fulfilled when
+              fresh stock arrives), then continue.
+            </p>
           </div>
 
-          <BackordersTable items={pendingItems} />
+          {/* Available for booking */}
+          <div>
+            <h4 className="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <PackageCheck size={14} /> Available for booking ({review.available.length})
+            </h4>
+            {review.available.length === 0 ? (
+              <p className="text-xs text-slate-400 italic px-1">No stock available for these items right now.</p>
+            ) : (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="px-4 py-2.5">SKU Code</th>
+                      <th className="px-4 py-2.5 text-center">Requested</th>
+                      <th className="px-4 py-2.5 text-center">Booking Now</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {review.available.map((l) => (
+                      <tr key={l.code}>
+                        <td className="px-4 py-2.5 font-bold text-slate-800">{l.code}</td>
+                        <td className="px-4 py-2.5 text-center text-slate-600">{l.requested}</td>
+                        <td className="px-4 py-2.5 text-center font-bold text-emerald-600">{l.bookable}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Pending indent */}
+          <div>
+            <h4 className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <AlertTriangle size={14} /> Converts to Pending Indent ({review.pending.length})
+            </h4>
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-2.5">SKU Code</th>
+                    <th className="px-4 py-2.5 text-center">Requested</th>
+                    <th className="px-4 py-2.5 text-center">AVL</th>
+                    <th className="px-4 py-2.5 text-center">Pending Indent</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {indentLines.map((l) => (
+                    <tr key={l.code}>
+                      <td className="px-4 py-2.5 font-bold text-slate-800">{l.code}</td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{l.requested}</td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{l.available}</td>
+                      <td className="px-4 py-2.5 text-center font-bold text-amber-600">{l.pending}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <ValidityNotice />
+
+          <div className="flex items-center justify-between gap-3 mt-2">
+            <p className="text-[11px] text-slate-500 font-medium">
+              Confirming raises {review.pending.length} indent{review.pending.length === 1 ? "" : "s"} in one step.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="secondary" onClick={() => setShowIndentConfirm(false)} disabled={loading}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={runConfirmBooking} disabled={loading}>
+                <AlertTriangle size={16} className="mr-2" />
+                Raise All Indents & Confirm
+              </Button>
+            </div>
+          </div>
         </div>
-      )}
+      </Modal>
+
+      {/* PLAIN BOOKING CONFIRMATION POPUP — shown when there is no pending indent */}
+      <Modal
+        isOpen={showBookingConfirm}
+        onClose={() => setShowBookingConfirm(false)}
+        title="Confirm Booking"
+        size="sm"
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-700 leading-relaxed">
+            You're about to confirm {cartItems.length} item{cartItems.length === 1 ? "" : "s"}
+            {" "}({getTotalQuantity()} units) from your Selection List.
+          </p>
+
+          <ValidityNotice />
+
+          <div className="flex justify-end gap-3 mt-2">
+            <Button variant="secondary" onClick={() => setShowBookingConfirm(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={runConfirmBooking} disabled={loading}>
+              Confirm Booking
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* BOOKING CONFIRMATION SUMMARY POPUP */}
+      <Modal
+        isOpen={!!summary}
+        onClose={() => { setSummary(null); navigate("/orders/history"); }}
+        title="Booking Confirmed"
+        size="sm"
+      >
+        {summary && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-emerald-50 flex items-center justify-center">
+                <PackageCheck size={22} className="text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">Booking {summary.orderId}</p>
+                <p className="text-xs text-slate-500">PO {summary.poNumber}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
+                <p className="text-2xl font-black text-emerald-700">{summary.confirmed}</p>
+                <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mt-1">Units Confirmed</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+                <p className="text-2xl font-black text-amber-700">{summary.pending}</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mt-1">Units → Pending Indent</p>
+              </div>
+            </div>
+
+            {summary.pending > 0 && (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Pending Indent <span className="font-semibold text-amber-700">{summary.indentId}</span> (PO {summary.poNumber})
+                is tracked separately and fulfilled when fresh stock arrives.
+              </p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-1">
+              <Button variant="primary" onClick={() => { setSummary(null); navigate("/orders/history"); }}>
+                View Booking History
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

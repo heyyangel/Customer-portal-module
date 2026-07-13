@@ -10,7 +10,7 @@ const BulkUpload = lazy(() => import("../pages/BulkUpload/BulkUpload").then(m =>
 const Backorders = lazy(() => import("../pages/Backorders/Backorders").then(m => ({ default: m.Backorders })));
 const Admin = lazy(() => import("../pages/Admin/Admin").then(m => ({ default: m.Admin })));
 const UserManagement = lazy(() => import("../pages/Admin/Settings/UserManagement").then(m => ({ default: m.UserManagement })));
-const ApprovalDashboard = lazy(() => import("../pages/Admin/ApprovalDashboard").then(m => ({ default: m.ApprovalDashboard })));
+const PermissionMatrix = lazy(() => import("../pages/Admin/Settings/PermissionMatrix").then(m => ({ default: m.PermissionMatrix })));
 const AuthLayout = lazy(() => import("../pages/Auth/AuthLayout").then(m => ({ default: m.AuthLayout })));
 const Login = lazy(() => import("../pages/Auth/Login").then(m => ({ default: m.Login })));
 const Register = lazy(() => import("../pages/Auth/Register").then(m => ({ default: m.Register })));
@@ -22,8 +22,7 @@ export const router = createBrowserRouter([
   {
     element: <AuthLayout />,
     children: [
-      { path: "/login", element: <Login variant="standard" /> },
-      { path: "/msil-login", element: <Login variant="msil" /> },
+      { path: "/login", element: <Login /> },
       { path: "/register", element: <Register /> },
     ]
   },
@@ -64,8 +63,8 @@ export const router = createBrowserRouter([
             element: <UserManagement />,
           },
           {
-            path: "admin/approvals",
-            element: <ApprovalDashboard />,
+            path: "admin/permissions",
+            element: <PermissionMatrix />,
           },
           {
             path: "inventory",

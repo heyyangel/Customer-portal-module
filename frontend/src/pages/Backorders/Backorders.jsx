@@ -29,7 +29,7 @@ export const Backorders = () => {
         `${item.product.code} moved to ${item.customer?.name || "the customer"}'s selection list. They've been emailed to confirm.`,
       );
     } else {
-      toast.error(res.error || "Could not move backorder to selection list.");
+      toast.error(res.error || "Could not move pending indent to selection list.");
     }
   };
 
@@ -38,6 +38,12 @@ export const Backorders = () => {
     0,
   );
 
+  // Distinct booking confirmations represented in the pending indent list
+  // (grouped by indentNumber; ungrouped/legacy rows each count as their own).
+  const distinctIndents = new Set(
+    pendingItems.map((i) => i.indentNumber || i._id),
+  ).size;
+
   const totalPages = Math.ceil(pendingItems.length / PAGE_SIZE) || 1;
   const currentPage = Math.min(page, totalPages);
   const pageItems = pendingItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -45,7 +51,7 @@ export const Backorders = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Pending Backorders"
+        title="Pending Indents"
         actions={
           <button
             onClick={() => fetchPendingReservations()}
@@ -67,7 +73,13 @@ export const Backorders = () => {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-            Backorder Lines
+            Pending Indents
+          </p>
+          <h3 className="text-2xl font-black text-slate-900 mt-1">{distinctIndents}</h3>
+        </div>
+        <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            Pending Indent Lines
           </p>
           <h3 className="text-2xl font-black text-slate-900 mt-1">{pendingItems.length}</h3>
         </div>
@@ -83,7 +95,7 @@ export const Backorders = () => {
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
         <div className="flex items-center gap-2 mb-4">
           <PackageX size={18} className="text-amber-500" />
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">Backorder Details</h2>
+          <h2 className="text-lg font-black text-slate-900 tracking-tight">Pending Indent Details</h2>
         </div>
         <BackordersTable
           items={pageItems}

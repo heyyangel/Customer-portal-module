@@ -2,9 +2,7 @@ import {
   X,
   Printer,
   Download,
-  Copy,
-  Ban,
-  MapPin,
+  ArrowRight,
   User,
   Hash,
   Calendar as CalendarIcon,
@@ -12,44 +10,52 @@ import {
   FileText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+
+// Admin-managed booking lifecycle. Each stage advances to the next.
+const STAGES = ["PO Received", "Ready for Dispatch", "Dispatched", "Delivered"];
+// Map a legacy 'Booked' status onto the first stage for display/progression.
+const normalizeStage = (status) => (status === "Booked" ? "PO Received" : status);
+const nextStageOf = (status) => {
+  const idx = STAGES.indexOf(normalizeStage(status));
+  return idx >= 0 && idx < STAGES.length - 1 ? STAGES[idx + 1] : null;
+};
 import { motion, AnimatePresence } from "framer-motion";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useUserStore } from "../../store/userStore";
+import { useCartStore } from "../../store/cartStore";
 import { StatusBadge } from "../ui/StatusBadge";
 import { ERPButton } from "../ui/ERPButton";
 import { OrderTimeline } from "../cards/OrderTimeline";
 import { OrderSummaryCard } from "../cards/OrderSummaryCard";
 import { useCanViewPrice } from "../../hooks/useCanViewPrice";
+import { PackageX } from "lucide-react";
 import toast from "react-hot-toast";
-
-const STATUS_OPTIONS = [
-  { value: "Booked", label: "Pending Approval" },
-  { value: "Approved", label: "Approved" },
-  { value: "Dispatched", label: "Dispatched" },
-  { value: "Delivered", label: "Delivered" },
-  { value: "Cancelled", label: "Cancelled" },
-];
 
 export const OrderDrawer = () => {
   const { selectedOrder, setSelectedOrder, updateOrderStatus } = useOrderHistoryStore();
   const { user } = useUserStore();
+  const { pendingItems, fetchPendingReservations } = useCartStore();
   const canViewPrice = useCanViewPrice();
   const isAdmin = user?.role === "Admin";
 
-  const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Sync the status selector whenever a different order is opened.
+  // Load pending indents so the drawer can show the ones tied to this booking's PO.
   useEffect(() => {
-    if (selectedOrder) setStatus(selectedOrder.status);
-  }, [selectedOrder?.id, selectedOrder?.status]);
+    if (selectedOrder) fetchPendingReservations();
+  }, [selectedOrder?.orderNumber, fetchPendingReservations]);
 
   if (!selectedOrder) return null;
+
+  // Pending indents produced by this booking are linked by its PO number.
+  const bookingIndents = pendingItems.filter(
+    (p) => p.poNumber && p.poNumber === selectedOrder.poNumber,
+  );
 
   const applyStatus = async (newStatus) => {
     if (busy || newStatus === selectedOrder.status) return;
     setBusy(true);
-    const res = await updateOrderStatus(selectedOrder.id, newStatus);
+    const res = await updateOrderStatus(selectedOrder, newStatus);
     setBusy(false);
     if (res.success) toast.success(`Status updated to ${newStatus}`);
     else toast.error(res.error || "Failed to update status");
@@ -83,7 +89,7 @@ export const OrderDrawer = () => {
           ]
         : []),
     ];
-    const title = `Order ${selectedOrder.orderNumber}${selectedOrder.customer ? ` - ${selectedOrder.customer}` : ""}`;
+    const title = `Booking ${selectedOrder.orderNumber}${selectedOrder.customer ? ` - ${selectedOrder.customer}` : ""}`;
     return { rows, columns, title };
   };
 
@@ -98,7 +104,8 @@ export const OrderDrawer = () => {
   const handlePDF = () => {
     const { rows, columns, title } = buildExport();
     import("../../utils/exportUtils").then(({ exportToPDF }) => {
-      exportToPDF(rows, columns, title, selectedOrder.orderNumber || "Order");
+      const ok = exportToPDF(rows, columns, title, selectedOrder.orderNumber || "Booking");
+      if (!ok) toast.error("PDF download failed");
     });
   };
 
@@ -124,7 +131,7 @@ export const OrderDrawer = () => {
           <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-4">
               <h2 className="text-xl font-black text-slate-800">
-                Order {selectedOrder.orderNumber}
+                Booking {selectedOrder.orderNumber}
               </h2>
               <StatusBadge status={selectedOrder.status} />
               {selectedOrder.orderType === "bulk_upload" && (
@@ -153,7 +160,7 @@ export const OrderDrawer = () => {
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
             {/* Top Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                   <User size={16} className="text-blue-600" />
@@ -188,7 +195,7 @@ export const OrderDrawer = () => {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase">
-                    Order Date
+                    Booking Date
                   </p>
                   <p className="text-sm font-bold text-slate-800 line-clamp-2">
                     {new Date(selectedOrder.date).toLocaleDateString()}
@@ -196,19 +203,6 @@ export const OrderDrawer = () => {
                 </div>
               </div>
 
-              <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-teal-50 flex items-center justify-center shrink-0">
-                  <MapPin size={16} className="text-teal-600" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
-                    Location
-                  </p>
-                  <p className="text-sm font-bold text-slate-800 line-clamp-2">
-                    {selectedOrder.deliveryLocation}
-                  </p>
-                </div>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -275,6 +269,44 @@ export const OrderDrawer = () => {
                   </div>
                 </div>
 
+                {/* Pending Indents tied to this booking (matched by PO number) */}
+                {bookingIndents.length > 0 && (
+                  <div className="bg-white border border-amber-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="px-5 py-4 border-b border-amber-100 flex items-center gap-2 bg-amber-50/50">
+                      <PackageX size={18} className="text-amber-500" />
+                      <h3 className="text-sm font-bold text-slate-800">
+                        Pending Indents ({bookingIndents.length})
+                      </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left whitespace-nowrap">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <tr>
+                            <th className="px-5 py-3">SKU Code</th>
+                            <th className="px-5 py-3">MSIL Code</th>
+                            <th className="px-5 py-3 text-center">Pending Qty</th>
+                            <th className="px-5 py-3 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-sm">
+                          {bookingIndents.map((p) => (
+                            <tr key={p._id} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 font-bold text-slate-800">{p.product.code}</td>
+                              <td className="px-5 py-3 text-slate-500">{p.product.msilCode || "-"}</td>
+                              <td className="px-5 py-3 text-center font-black text-amber-600">{p.pendingQuantity}</td>
+                              <td className="px-5 py-3 text-center">
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                  {p.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 {/* Remarks */}
                 {selectedOrder.remarks && (
                   <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
@@ -309,53 +341,27 @@ export const OrderDrawer = () => {
             </div>
           </div>
 
-          {/* Footer Actions */}
+          {/* Footer Actions — advance through the booking lifecycle */}
           <div className="px-6 py-4 bg-white border-t border-slate-200 flex items-center justify-between shrink-0">
-            {isAdmin ? (
-              <ERPButton
-                variant="outline"
-                className="text-error-600 border-error-200 hover:bg-error-50"
-                disabled={busy || selectedOrder.status === "Cancelled"}
-                onClick={() => applyStatus("Cancelled")}
-              >
-                <Ban size={16} className="mr-2" /> Cancel Order
-              </ERPButton>
-            ) : (
-              <span className="text-xs text-slate-400 font-medium">
-                Status: {selectedOrder.status}
-              </span>
-            )}
+            <span className="text-xs text-slate-400 font-medium">
+              Status: <span className="font-bold text-slate-600">{normalizeStage(selectedOrder.status)}</span>
+            </span>
 
-            <div className="flex items-center gap-2">
-              <ERPButton
-                variant="outline"
-                onClick={() => toast("Duplicate is coming soon", { icon: "🧾" })}
-              >
-                <Copy size={16} className="mr-2" /> Duplicate
-              </ERPButton>
-
-              {isAdmin && (
-                <>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    disabled={busy}
-                    className="text-sm font-semibold border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-700 bg-white"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
-                  <ERPButton
-                    variant="primary"
-                    disabled={busy || status === selectedOrder.status}
-                    onClick={() => applyStatus(status)}
-                  >
-                    {busy ? "Updating..." : "Update Status"}
-                  </ERPButton>
-                </>
-              )}
-            </div>
+            {isAdmin && (() => {
+              const next = nextStageOf(selectedOrder.status);
+              return next ? (
+                <ERPButton
+                  variant="primary"
+                  disabled={busy}
+                  onClick={() => applyStatus(next)}
+                >
+                  {busy ? "Updating..." : `Move to ${next}`}
+                  <ArrowRight size={16} className="ml-2" />
+                </ERPButton>
+              ) : (
+                <span className="text-xs font-bold text-emerald-600">Delivered — lifecycle complete</span>
+              );
+            })()}
           </div>
         </motion.div>
       </div>

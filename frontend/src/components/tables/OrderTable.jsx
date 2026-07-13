@@ -1,35 +1,80 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trash2, Calendar, Clock } from "lucide-react";
+import { Trash2, PackagePlus } from "lucide-react";
+import toast from "react-hot-toast";
 
-export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
-  const getCountdownBadge = (remainingDays) => {
-    if (remainingDays <= 0) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-500 border border-slate-300">
-          Expired
-        </span>
-      );
+// Qty cell with local edit state — commits on blur/Enter so typing intermediate
+// non-MOQ values isn't reverted mid-keystroke by the controlled input.
+const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
+  const rowMoq = Number(item.product.moq) || 0;
+  const applyMoq = enforceMoq && rowMoq > 1;
+  const avl = item.product.availableStock ?? 0;
+  const shortfall = Math.max(0, item.orderQuantity - avl);
+
+  const [draft, setDraft] = useState(String(item.orderQuantity));
+
+  // Reflect external changes (e.g. store refresh) when not actively editing.
+  React.useEffect(() => {
+    setDraft(String(item.orderQuantity));
+  }, [item.orderQuantity]);
+
+  const commit = () => {
+    const val = parseInt(draft, 10);
+    if (isNaN(val) || val <= 0) {
+      setDraft(String(item.orderQuantity)); // revert invalid entry
+      return;
     }
-    if (remainingDays === 1) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-red-50 text-red-600 border border-red-200 animate-pulse">
-          <Clock size={12} /> 1 Day
-        </span>
-      );
+    if (applyMoq && val % rowMoq !== 0) {
+      toast.error(`Quantity must be a multiple of the MOQ (${rowMoq})`);
+      setDraft(String(item.orderQuantity));
+      return;
     }
-    if (remainingDays <= 4) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-yellow-50 text-yellow-600 border border-yellow-200">
-          <Clock size={12} /> {remainingDays} Days
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold bg-success-50 text-success-700 border border-success-200">
-        <Clock size={12} /> {remainingDays} Days
-      </span>
+    if (val !== item.orderQuantity) onUpdateQty(item.product.code, val);
+  };
+
+  return (
+    <div className="flex flex-col gap-1 items-center">
+      <input
+        type="number"
+        value={draft}
+        min={applyMoq ? rowMoq : 1}
+        step={applyMoq ? rowMoq : 1}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="w-16 px-1 py-1 text-center font-bold border border-slate-300 text-slate-800 rounded-md outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white text-xs shadow-sm"
+      />
+      {applyMoq && <span className="text-[9px] text-slate-400 font-semibold">MOQ {rowMoq}</span>}
+      {shortfall > 0 && <span className="text-[9px] text-amber-600 font-bold">+{shortfall} indent</span>}
+    </div>
+  );
+};
+
+export const OrderTable = ({ items, onUpdateQty, onRemoveItem, onBulkRemove, onRaiseIndent, enforceMoq = false }) => {
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  // Selection is keyed by reservation _id (unique even when the same product
+  // appears twice) and pruned against the current items so removed rows never
+  // linger as ghost selections.
+  const itemIds = items.map((i) => i._id);
+  const selected = selectedIds.filter((id) => itemIds.includes(id));
+
+  const allSelected = items.length > 0 && selected.length === items.length;
+
+  const toggleAll = () => {
+    setSelectedIds(allSelected ? [] : itemIds);
+  };
+
+  const toggleOne = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
     );
+  };
+
+  const handleBulkDelete = () => {
+    if (selected.length === 0) return;
+    onBulkRemove?.(selected);
+    setSelectedIds([]);
   };
 
   const formatDate = (dateStr) => {
@@ -40,12 +85,34 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
 
   return (
     <div className="w-full border border-slate-200 rounded-xl bg-white overflow-hidden shadow-sm">
+      {selected.length > 0 && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50/70 border-b border-red-100">
+          <span className="text-xs font-bold text-red-700">
+            {selected.length} item{selected.length > 1 ? "s" : ""} selected
+          </span>
+          <button
+            onClick={handleBulkDelete}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition-all focus:outline-none"
+          >
+            <Trash2 size={13} /> Delete Selected
+          </button>
+        </div>
+      )}
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 font-bold uppercase select-none">
-            <th className="px-4 py-4 w-[25%]">SKU & Product</th>
-            <th className="px-4 py-4 w-[25%]">Reservation Dates</th>
-            <th className="px-4 py-4 w-[15%] text-center">Countdown</th>
+            <th className="px-4 py-4 w-[5%] text-center">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                title="Select all"
+              />
+            </th>
+            <th className="px-4 py-4 w-[24%]">SKU & Product</th>
+            <th className="px-4 py-4 w-[23%]">Reservation Dates</th>
+            <th className="px-4 py-4 w-[13%] text-center">AVL Qty</th>
             <th className="px-4 py-4 w-[12%] text-center">Qty</th>
             <th className="px-4 py-4 w-[13%] text-center">Status</th>
             <th className="px-4 py-4 w-[10%] text-center">Action</th>
@@ -55,7 +122,7 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
           <AnimatePresence initial={false}>
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-slate-400 font-medium italic">
+                <td colSpan={7} className="px-5 py-12 text-center text-slate-400 font-medium italic">
                   No active reservations in your selection list.
                 </td>
               </tr>
@@ -63,13 +130,23 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
             {items.map((item) => {
               return (
                 <motion.tr
-                  key={item.product.code}
+                  key={item._id}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
                   className="bg-white hover:bg-slate-50 transition-colors"
                 >
+                  {/* Select */}
+                  <td className="px-4 py-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(item._id)}
+                      onChange={() => toggleOne(item._id)}
+                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    />
+                  </td>
+
                   {/* SKU & Name */}
                   <td className="px-4 py-4">
                     <div className="flex flex-col">
@@ -92,31 +169,16 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
                     </div>
                   </td>
 
-                  {/* Countdown Badge */}
+                  {/* Available Quantity (AVL) */}
                   <td className="px-4 py-4 text-center">
-                    {getCountdownBadge(item.remainingDays)}
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold bg-slate-50 text-slate-700 border border-slate-200">
+                      AVL: {item.product.availableStock ?? 0}
+                    </span>
                   </td>
 
-                  {/* Qty Input */}
+                  {/* Qty Input — editable directly from the Selection List */}
                   <td className="px-4 py-4">
-                    <div className="flex flex-col gap-1 items-center">
-                      <input
-                        type="number"
-                        value={item.orderQuantity}
-                        min={item.product.moq || 1}
-                        step={item.product.moq || 1}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          const moq = item.product.moq || 1;
-                          if (!isNaN(val) && val > 0) {
-                            if (val % moq === 0) {
-                               onUpdateQty(item.product.code, val);
-                            }
-                          }
-                        }}
-                        className="w-14 px-1 py-1 text-center font-bold border border-slate-300 text-slate-800 rounded-md outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 bg-white text-xs shadow-sm"
-                      />
-                    </div>
+                    <QtyCell item={item} enforceMoq={enforceMoq} onUpdateQty={onUpdateQty} />
                   </td>
 
                   {/* Status */}
@@ -127,14 +189,25 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem }) => {
                   </td>
 
                   {/* Action */}
-                  <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={() => onRemoveItem(item.product.code)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all focus:outline-none"
-                      title="Remove Item"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-1">
+                      {onRaiseIndent && (item.orderQuantity - (item.product.availableStock ?? 0)) > 0 && (
+                        <button
+                          onClick={() => onRaiseIndent(item)}
+                          className="p-1.5 rounded-lg text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition-all focus:outline-none"
+                          title="Raise indent for the out-of-stock quantity"
+                        >
+                          <PackagePlus size={15} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onRemoveItem(item.product.code)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all focus:outline-none"
+                        title="Remove Item"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </motion.tr>
               );

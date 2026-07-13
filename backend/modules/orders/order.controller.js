@@ -133,7 +133,7 @@ export const createOrder = async (req, res, next) => {
           orderId: orderNumber,
           brand: brand || 'Koken',
           user: req.user._id,
-          status: 'Booked',
+          status: 'PO Received',
           orderTimestamp: now,
           company: req.user.company || null,
           role: req.user.role || 'Customer',
@@ -168,7 +168,7 @@ export const createOrder = async (req, res, next) => {
       ? await Order.insertMany(ordersToCreate, { session })
       : [];
 
-    await logEvent(req.user, 'Order Created', `Order ${orderNumber} created with ${items.length} line item(s).`, req, session);
+    await logEvent(req.user, 'Booking Created', `Booking ${orderNumber} created with ${items.length} line item(s).`, req, session);
 
     await session.commitTransaction();
 
@@ -177,16 +177,16 @@ export const createOrder = async (req, res, next) => {
 
       const totalPending = summary.reduce((s, i) => s + (i.pendingQty || 0), 0);
       notifyUser(req.user._id, {
-        title: 'Order Placed',
+        title: 'Booking Placed',
         message: totalPending > 0
-          ? `Your order ${orderNumber} is placed. ${totalPending} units could not be fulfilled and are on backorder.`
-          : `Your order ${orderNumber} has been placed successfully.`,
+          ? `Your booking ${orderNumber} is placed. ${totalPending} units could not be fulfilled and are on pending indent.`
+          : `Your booking ${orderNumber} has been placed successfully.`,
         type: 'order',
       });
       const who = req.user.company || req.user.user || req.user.email;
       notifyAdmins({
-        title: 'New Order Placed',
-        message: `${who} placed order ${orderNumber} (${summary.length} line item${summary.length === 1 ? '' : 's'})${totalPending > 0 ? ` — ${totalPending} units on backorder` : ''}.`,
+        title: 'New Booking Placed',
+        message: `${who} placed booking ${orderNumber} (${summary.length} line item${summary.length === 1 ? '' : 's'})${totalPending > 0 ? ` — ${totalPending} units on pending indent` : ''}.`,
         type: 'order',
       });
     }
@@ -233,44 +233,11 @@ export const updateOrderStatus = async (req, res, next) => {
     // Tell the order's owner their status changed.
     if (order.user) {
       notifyUser(order.user, {
-        title: 'Order Update',
-        message: `Your order ${order.orderId} is now "${status}".`,
+        title: 'Booking Update',
+        message: `Your booking ${order.orderId} is now "${status}".`,
         type: 'order',
       });
     }
-
-    res.status(200).json({ success: true, data: order });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Assign an order to a workflow-stage owner (role). The flat Order schema has no
-// embedded audit array, so the assignment is persisted on `assignedToRole` and
-// the history is recorded via the AuditLog collection.
-export const assignOrder = async (req, res, next) => {
-  try {
-    const { role, remarks } = req.body;
-    if (!role) {
-      return res.status(400).json({ success: false, message: 'A target role is required.' });
-    }
-
-    const order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-
-    order.assignedToRole = role;
-    await order.save();
-
-    await logEvent(
-      req.user,
-      `Order Assigned to ${role}`,
-      remarks ? `${order.orderId}: ${remarks}` : `${order.orderId} assigned to ${role}.`,
-      req
-    );
-
-    io.emit('order-updated', { orderId: order._id, assignedToRole: role });
 
     res.status(200).json({ success: true, data: order });
   } catch (error) {

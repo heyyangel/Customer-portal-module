@@ -1,53 +1,32 @@
 import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../../components/common/PageHeader";
 import { MetricsCard } from "../../components/cards/MetricsCard";
 import { OrderToolbar } from "../../components/layout/OrderToolbar";
 import { OrderHistoryTable } from "../../components/tables/OrderHistoryTable";
 import { OrderDrawer } from "../../components/drawer/OrderDrawer";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
-
-// Maps the ?status= query param (used by the sidebar links) to the real Order
-// status enum plus the page copy for each view.
-const VIEWS = {
-  pending: {
-    status: "Booked",
-    title: "Pending Approval",
-    subtitle: "Orders awaiting admin approval.",
-  },
-  approved: {
-    status: "Approved",
-    title: "Approved Orders",
-    subtitle: "Orders that have been approved and are moving through fulfilment.",
-  },
-};
-
-const DEFAULT_VIEW = {
-  status: "all",
-  title: "Order History & Lifecycle Management",
-  subtitle: "Track, search and manage customer orders across all ERP modules.",
-};
+import { useCartStore } from "../../store/cartStore";
+import { useProductStore } from "../../store/productStore";
 
 export const OrderHistory = () => {
-  const { fetchOrders, setFilters } = useOrderHistoryStore();
-  const [searchParams] = useSearchParams();
-  const statusParam = searchParams.get("status");
-  const view = VIEWS[statusParam] || DEFAULT_VIEW;
+  const { fetchOrders } = useOrderHistoryStore();
+  const { fetchPendingReservations } = useCartStore();
+  const { fetchAllProducts } = useProductStore();
 
-  // Load the data once.
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
-
-  // Apply the status filter for the active view whenever the link changes.
-  useEffect(() => {
-    setFilters({ status: view.status });
-  }, [view.status, setFilters]);
+    // Pending indents drive the per-row "includes pending indent" badge.
+    fetchPendingReservations();
+    // Products give live Available Quantity for the detailed export.
+    fetchAllProducts();
+  }, [fetchOrders, fetchPendingReservations, fetchAllProducts]);
 
   return (
     <div className="flex flex-col gap-6 relative">
-      <PageHeader title={view.title} />
-      <p className="text-slate-600 -mt-2 text-sm">{view.subtitle}</p>
+      <PageHeader title="Booking History" />
+      <p className="text-slate-600 -mt-2 text-sm">
+        Track, search and manage bookings across all ERP modules.
+      </p>
 
       <MetricsCard />
 

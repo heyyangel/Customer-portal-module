@@ -71,6 +71,28 @@ export const updateUser = async (req, res, next) => {
   }
 };
 
+// Admin resets another user's password. No current-password check — this is an
+// administrative override, gated by the manage_users permission on the route.
+// Stored plaintext to remain consistent with the current auth scheme.
+export const resetUserPassword = async (req, res, next) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || String(newPassword).length < 5) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 5 characters.' });
+    }
+
+    const user = await User.findById(req.params.id).select('+password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({ success: true, message: `Password reset for ${user.email}.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateUserRole = async (req, res, next) => {
   try {
     const { role } = req.body;

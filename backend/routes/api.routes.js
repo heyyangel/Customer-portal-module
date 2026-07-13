@@ -106,13 +106,12 @@ router.post('/orders', async (req, res, next) => {
       throw new Error(`Insufficient stock. Available: ${product.availableForSale}`);
     }
 
-    // MSIL Code Validation
-    if (!product.msilCode) {
-      throw new Error(`Product ${product.skuCode} does not have an MSIL Code assigned.`);
-    }
-    const msilDoc = await MsilCode.findOne({ code: product.msilCode }).session(session);
-    if (!msilDoc || msilDoc.status !== 'Active') {
-      throw new Error(`MSIL Code ${product.msilCode} for product ${product.skuCode} is inactive or does not exist.`);
+    // MSIL Code Validation — only enforced when a code is actually assigned.
+    if (product.msilCode) {
+      const msilDoc = await MsilCode.findOne({ code: product.msilCode }).session(session);
+      if (!msilDoc || msilDoc.status !== 'Active') {
+        throw new Error(`MSIL Code ${product.msilCode} for product ${product.skuCode} is inactive or does not exist.`);
+      }
     }
 
     // Recompute and update product inventory fields
@@ -230,11 +229,11 @@ router.get('/dashboard/stats', protect, async (req, res, next) => {
     ]);
     const lowStockAlerts = kokenLow + bixLow + imadaLow;
 
-    // Order status breakdown
-    const [totalOrders, bookedOrders, approvedOrders, dispatchedOrders, deliveredOrders] = await Promise.all([
+    // Booking status breakdown. "In process" = PO Received + Ready for Dispatch
+    // (plus legacy 'Booked' records).
+    const [totalOrders, bookedOrders, dispatchedOrders, deliveredOrders] = await Promise.all([
       Order.countDocuments(orderQuery),
-      Order.countDocuments({ ...orderQuery, status: 'Booked' }),
-      Order.countDocuments({ ...orderQuery, status: 'Approved' }),
+      Order.countDocuments({ ...orderQuery, status: { $in: ['PO Received', 'Ready for Dispatch', 'Booked'] } }),
       Order.countDocuments({ ...orderQuery, status: 'Dispatched' }),
       Order.countDocuments({ ...orderQuery, status: 'Delivered' }),
     ]);
@@ -310,18 +309,43 @@ router.get('/dashboard/stats', protect, async (req, res, next) => {
       ? Math.round((totalConfirmed / totalBooked) * 10000) / 100
       : 0;
 
-    // Monthly trend — last 6 months, booked vs confirmed side by side
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-    sixMonthsAgo.setDate(1);
-    sixMonthsAgo.setHours(0, 0, 0, 0);
+    // Demand-vs-fulfilment trend over a selectable range. Short ranges group by
+    // day; longer ranges group by month.
+    //   ?range=15d | 1m | 3m | 6m (default) | 12m
+    const RANGES = {
+      '15d': { unit: 'day', count: 15 },
+      '1m':  { unit: 'day', count: 30 },
+      '3m':  { unit: 'month', count: 3 },
+      '6m':  { unit: 'month', count: 6 },
+      '12m': { unit: 'month', count: 12 },
+    };
+    const range = RANGES[req.query.range] || RANGES['6m'];
+
+    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const byDay = range.unit === 'day';
+
+    // Window start.
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    if (byDay) {
+      startDate.setDate(startDate.getDate() - (range.count - 1));
+    } else {
+      startDate.setMonth(startDate.getMonth() - (range.count - 1));
+      startDate.setDate(1);
+    }
+
+    // Grouping key: by day (year-month-day) or by month (year-month).
+    const groupId = byDay
+      ? { year: { $year: '$FIELD' }, month: { $month: '$FIELD' }, day: { $dayOfMonth: '$FIELD' } }
+      : { year: { $year: '$FIELD' }, month: { $month: '$FIELD' } };
+    const idFor = (field) => JSON.parse(JSON.stringify(groupId).replace(/\$FIELD/g, field));
 
     const [orderTrend, pendingTrend, reservedTrend] = await Promise.all([
       Order.aggregate([
-        { $match: { ...orderQuery, createdAt: { $gte: sixMonthsAgo } } },
+        { $match: { ...orderQuery, createdAt: { $gte: startDate } } },
         {
           $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+            _id: idFor('$createdAt'),
             count:     { $sum: 1 },
             booked:    { $sum: { $ifNull: ['$bookedQty', '$requestedQty'] } },
             confirmed: { $sum: { $ifNull: ['$confirmedQty', '$requestedQty'] } }
@@ -329,51 +353,42 @@ router.get('/dashboard/stats', protect, async (req, res, next) => {
         }
       ]),
       Reservation.aggregate([
-        { $match: { ...fullyPendingFilter, updatedAt: { $gte: sixMonthsAgo } } },
-        {
-          $group: {
-            _id: { year: { $year: '$updatedAt' }, month: { $month: '$updatedAt' } },
-            booked: { $sum: '$quantity' }
-          }
-        }
+        { $match: { ...fullyPendingFilter, updatedAt: { $gte: startDate } } },
+        { $group: { _id: idFor('$updatedAt'), booked: { $sum: '$quantity' } } }
       ]),
-      // Reserved demand grouped by when it was added to the selection list.
       Reservation.aggregate([
-        { $match: { ...reservedFilter, createdAt: { $gte: sixMonthsAgo } } },
-        {
-          $group: {
-            _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-            booked: { $sum: '$quantity' }
-          }
-        }
+        { $match: { ...reservedFilter, createdAt: { $gte: startDate } } },
+        { $group: { _id: idFor('$createdAt'), booked: { $sum: '$quantity' } } }
       ])
     ]);
 
-    const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const keyOf = (y, m) => `${y}-${m}`;
-    const orderMap = new Map(orderTrend.map(o => [keyOf(o._id.year, o._id.month), o]));
-    const pendMap  = new Map(pendingTrend.map(p => [keyOf(p._id.year, p._id.month), p]));
-    const resvMap  = new Map(reservedTrend.map(r => [keyOf(r._id.year, r._id.month), r]));
+    const keyOf = (id) => byDay ? `${id.year}-${id.month}-${id.day}` : `${id.year}-${id.month}`;
+    const orderMap = new Map(orderTrend.map(o => [keyOf(o._id), o]));
+    const pendMap  = new Map(pendingTrend.map(p => [keyOf(p._id), p]));
+    const resvMap  = new Map(reservedTrend.map(r => [keyOf(r._id), r]));
 
     const trendFormatted = [];
-    const cursor = new Date(sixMonthsAgo);
-    for (let i = 0; i < 6; i++) {
+    const cursor = new Date(startDate);
+    for (let i = 0; i < range.count; i++) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth() + 1;
-      const o = orderMap.get(keyOf(y, m));
-      const p = pendMap.get(keyOf(y, m));
-      const rv = resvMap.get(keyOf(y, m));
+      const d = cursor.getDate();
+      const key = byDay ? `${y}-${m}-${d}` : `${y}-${m}`;
+      const o = orderMap.get(key);
+      const p = pendMap.get(key);
+      const rv = resvMap.get(key);
       const confirmed = o?.confirmed || 0;
       const booked = (o?.booked || 0) + (p?.booked || 0) + (rv?.booked || 0);
       trendFormatted.push({
-        name:        MONTH_NAMES[m - 1],
+        name:        byDay ? `${d} ${MONTH_NAMES[m - 1]}` : MONTH_NAMES[m - 1],
         booked,
         confirmed,
         unfulfilled: Math.max(0, booked - confirmed), // reserved (in list) + pending backorder
         orders:      o?.count || 0, // retained for back-compat (CSV export)
         qty:         confirmed
       });
-      cursor.setMonth(cursor.getMonth() + 1);
+      if (byDay) cursor.setDate(cursor.getDate() + 1);
+      else cursor.setMonth(cursor.getMonth() + 1);
     }
 
     // Recent orders for the activity feed (fixed-height scrollable list)
@@ -390,7 +405,6 @@ router.get('/dashboard/stats', protect, async (req, res, next) => {
         lowStockAlerts,
         totalOrders,
         bookedOrders,
-        approvedOrders,
         dispatchedOrders,
         deliveredOrders,
         activeUsers,

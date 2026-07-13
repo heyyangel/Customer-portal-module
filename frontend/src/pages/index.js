@@ -3,7 +3,6 @@ export { CustomerOrders } from "./CustomerOrders/CustomerOrders";
 export { OrderHistory } from "./OrderHistory/OrderHistory";
 export { BulkUpload } from "./BulkUpload/BulkUpload";
 export { Admin } from "./Admin/Admin";
-export { ApprovalDashboard } from "./Admin/ApprovalDashboard";
 export { AuthLayout } from "./Auth/AuthLayout";
 export { Login } from "./Auth/Login";
 export { Register } from "./Auth/Register";

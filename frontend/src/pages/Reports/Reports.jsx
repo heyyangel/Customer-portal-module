@@ -68,7 +68,7 @@ export const Reports = () => {
               </span>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Orders Processed</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bookings Processed</p>
               <h3 className="text-2xl font-black text-slate-900">1,284</h3>
             </div>
           </CardContent>
@@ -82,7 +82,7 @@ export const Reports = () => {
               </div>
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Order Value</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Booking Value</p>
               <h3 className="text-2xl font-black text-slate-900">₹264.80</h3>
             </div>
           </CardContent>

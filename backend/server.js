@@ -6,6 +6,7 @@ import app from './app.js';
 import User from './models/User.js';
 import { connectDatabase } from './config/database.js';
 import { runReservationExpiryChecks } from './modules/reservations/reservationExpiryJob.js';
+import { seedDefaultRoles } from './config/seedRoles.js';
 import cron from 'node-cron';
 
 dotenv.config();
@@ -61,7 +62,10 @@ io.on('connection', (socket) => {
 // Start Application
 const startServer = async () => {
   await connectDatabase();
-  
+
+  // Seed the default RBAC roles if the collection is empty.
+  await seedDefaultRoles();
+
   // Initial check on boot
   await runReservationExpiryChecks();
   

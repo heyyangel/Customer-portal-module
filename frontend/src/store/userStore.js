@@ -57,6 +57,25 @@ export const useUserStore = create((set) => ({
     }
   },
 
+  updateProfile: async (updates) => {
+    try {
+      const user = await usersApi.updateProfile(updates);
+      set({ user });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Failed to update profile' };
+    }
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      await usersApi.changePassword(currentPassword, newPassword);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Failed to change password' };
+    }
+  },
+
   logout: () => {
     localStorage.removeItem('token');
     set({ user: null });

@@ -4,8 +4,6 @@ import {
   PlusCircle,
   UploadCloud,
   History,
-  Clock,
-  CheckCircle2,
   PackageX,
   Boxes,
   Users,
@@ -16,7 +14,6 @@ import {
 import { useUIStore } from "../../store/uiStore";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
-import toast from "react-hot-toast";
 
 export const Sidebar = () => {
   const { sidebarOpen, toggleSidebar } = useUIStore();
@@ -34,24 +31,9 @@ export const Sidebar = () => {
       badge: cartItems.length > 0 ? cartItems.length : undefined,
     },
     { name: "Bulk Upload", path: "/orders/bulk-upload", icon: UploadCloud },
-    { name: "Order History", path: "/orders/history", icon: History },
-    {
-      name: "Pending Approval",
-      path: "/orders/history?status=pending",
-      icon: Clock,
-    },
-    {
-      name: "Approved Orders",
-      path: "/orders/history?status=approved",
-      icon: CheckCircle2,
-    },
-    { name: "Backorders", path: "/orders/backorders", icon: PackageX },
+    { name: "Booking History", path: "/orders/history", icon: History },
+    { name: "Raise Indent", path: "/orders/backorders", icon: PackageX },
     ...(user?.role === 'Admin' ? [
-      {
-        name: "Admin Approvals",
-        path: "/admin/approvals",
-        icon: Boxes,
-      },
       { name: "User Management", path: "/admin/users", icon: Users },
       { name: "Inventory", path: "/inventory", icon: Boxes },
       // Reports hidden from the menu for now.
@@ -108,20 +90,9 @@ export const Sidebar = () => {
           return (
           <NavLink
             key={item.name}
-            to={item.comingSoon ? "#" : item.path}
-            onClick={(e) => {
-              if (item.comingSoon) {
-                e.preventDefault();
-                toast.success(
-                  `${item.name} module placeholder: Coming in Phase 2!`,
-                  {
-                    icon: "🚀",
-                  },
-                );
-              }
-            }}
+            to={item.path}
             className={() =>
-              `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActuallyActive && !item.comingSoon
+              `group relative flex items-center gap-3.5 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${isActuallyActive
                 ? "nav-active bg-white text-primary-800 shadow-md shadow-primary-950/30 border border-transparent"
                 : "text-primary-100 border border-transparent hover:bg-primary-400/20 hover:text-white hover:border-primary-400/30 hover:translate-x-1 hover:shadow-[0_0_15px_rgba(96,165,250,0.3)]"
               }`
@@ -129,7 +100,7 @@ export const Sidebar = () => {
           >
             {() => (
               <>
-                {isActuallyActive && !item.comingSoon && (
+                {isActuallyActive && (
                   <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-1 rounded-full bg-white" />
                 )}
                 <item.icon size={20} className="shrink-0" />
@@ -139,11 +110,6 @@ export const Sidebar = () => {
                 {sidebarOpen && item.badge !== undefined && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isActuallyActive ? "bg-primary-600 text-white" : "bg-white text-primary-800"}`}>
                     {item.badge}
-                  </span>
-                )}
-                {sidebarOpen && item.comingSoon && (
-                  <span className="text-[9px] text-primary-200 bg-white/10 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">
-                    Soon
                   </span>
                 )}
               </>

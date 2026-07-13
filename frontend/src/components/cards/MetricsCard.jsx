@@ -2,14 +2,10 @@ import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { Card, CardContent } from "../ui/Card";
 import {
   FileText,
-  Clock,
+  Inbox,
   CheckCircle,
   Package,
   Truck,
-  AlertTriangle,
-  XCircle,
-  Calendar,
-  CalendarDays,
 } from "lucide-react";
 
 export const MetricsCard = () => {
@@ -17,22 +13,16 @@ export const MetricsCard = () => {
 
   const items = [
     {
-      label: "Total Orders",
+      label: "Total Bookings",
       value: metrics.total,
       icon: <FileText size={20} className="text-primary-600" />,
       bg: "bg-primary-50",
     },
     {
-      label: "Pending Approval",
-      value: metrics.pending,
-      icon: <Clock size={20} className="text-warning-600" />,
+      label: "PO Received",
+      value: metrics.poReceived,
+      icon: <Inbox size={20} className="text-warning-600" />,
       bg: "bg-warning-50",
-    },
-    {
-      label: "Approved",
-      value: metrics.approved,
-      icon: <CheckCircle size={20} className="text-info-600" />,
-      bg: "bg-info-50",
     },
     {
       label: "Ready for Dispatch",
@@ -47,52 +37,28 @@ export const MetricsCard = () => {
       bg: "bg-teal-50",
     },
     {
-      label: "Completed",
+      label: "Delivered",
       value: metrics.completed,
       icon: <CheckCircle size={20} className="text-success-600" />,
       bg: "bg-success-50",
     },
-    {
-      label: "Rejected",
-      value: metrics.rejected,
-      icon: <AlertTriangle size={20} className="text-error-600" />,
-      bg: "bg-error-50",
-    },
-    {
-      label: "Cancelled",
-      value: metrics.cancelled,
-      icon: <XCircle size={20} className="text-slate-600" />,
-      bg: "bg-slate-100",
-    },
-    {
-      label: "Today",
-      value: metrics.today,
-      icon: <Calendar size={20} className="text-blue-600" />,
-      bg: "bg-blue-50",
-    },
-    {
-      label: "This Month",
-      value: metrics.thisMonth,
-      icon: <CalendarDays size={20} className="text-violet-600" />,
-      bg: "bg-violet-50",
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
       {items.map((item, idx) => (
         <Card key={idx} className="border-slate-200 shadow-sm overflow-hidden">
-          <CardContent className="p-4 flex flex-col gap-3">
+          <CardContent className="p-3 flex items-center gap-3">
             <div
-              className={`w-10 h-10 rounded-full flex items-center justify-center ${item.bg}`}
+              className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${item.bg}`}
             >
               {item.icon}
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
                 {item.label}
               </p>
-              <h3 className="text-2xl font-black text-slate-800">
+              <h3 className="text-xl font-black text-slate-800">
                 {item.value.toLocaleString()}
               </h3>
             </div>

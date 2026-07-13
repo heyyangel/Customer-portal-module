@@ -1,13 +1,43 @@
-import { PackageX, ArrowRightCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { PackageX, ArrowRightCircle, Loader2, Eye } from "lucide-react";
+import { Modal } from "../ui/Modal";
+
+// Groups flat pending-indent rows (one per SKU) that came from the same
+// booking confirmation (shared indentNumber) into a single entry, so multiple
+// items confirmed together show as one row instead of one row per SKU.
+const groupByIndent = (items) => {
+  const byIndent = new Map();
+  const ungrouped = [];
+
+  for (const item of items) {
+    if (!item.indentNumber) {
+      ungrouped.push({ indentNumber: null, lines: [item], primary: item });
+      continue;
+    }
+    if (!byIndent.has(item.indentNumber)) {
+      byIndent.set(item.indentNumber, []);
+    }
+    byIndent.get(item.indentNumber).push(item);
+  }
+
+  const grouped = [...byIndent.entries()].map(([indentNumber, lines]) => ({
+    indentNumber,
+    lines,
+    primary: lines[0],
+  }));
+
+  return [...grouped, ...ungrouped];
+};
 
 /**
- * Renders the list of pending backorders (unfulfilled reservation quantities).
+ * Renders the list of pending indents (unfulfilled reservation quantities),
+ * one row per booking confirmation. Click a row to see every SKU it covers.
  *
  * @param {Array}    items        Pending items from the cart store.
  * @param {boolean}  showCustomer Show the customer column (admin view).
  * @param {boolean}  compact      Tighter padding for embedding in a dashboard.
  * @param {Function} onRestore    Admin-only. If provided, renders an action to move
- *                                the backorder back to the customer's selection list.
+ *                                a pending indent line back to the customer's selection list.
  * @param {string}   restoringId  _id of the row currently being restored (spinner).
  */
 export const BackordersTable = ({
@@ -17,11 +47,13 @@ export const BackordersTable = ({
   onRestore = null,
   restoringId = null,
 }) => {
+  const [selectedGroup, setSelectedGroup] = useState(null);
+
   if (!items || items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
         <PackageX size={32} className="text-slate-300" />
-        <p className="text-sm font-semibold text-slate-400">No pending backorders</p>
+        <p className="text-sm font-semibold text-slate-400">No pending indents</p>
         <p className="text-xs text-slate-400">
           Unfulfilled quantities from confirmations will appear here.
         </p>
@@ -30,75 +62,184 @@ export const BackordersTable = ({
   }
 
   const pad = compact ? "py-2" : "py-3";
+  const groups = groupByIndent(items);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200/80">
-            <th className={`${pad} pr-4`}>SKU Code</th>
-            {showCustomer && <th className={`${pad} pr-4`}>Customer</th>}
-            <th className={`${pad} pr-4`}>Category</th>
-            <th className={`${pad} pr-4 text-center`}>Pending Qty</th>
-            <th className={`${pad} pr-4 text-center`}>Current Stock</th>
-            <th className={`${pad} pr-4 text-center`}>Status</th>
-            {onRestore && <th className={`${pad} pr-4 text-center`}>Action</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {items.map((item) => (
-            <tr key={item._id} className="text-slate-700">
-              <td className={`${pad} pr-4 font-bold text-slate-800`}>{item.product.code}</td>
-              {showCustomer && (
-                <td className={`${pad} pr-4 text-slate-600 font-semibold`}>
-                  {item.customer?.name || "—"}
-                </td>
-              )}
-              <td className={`${pad} pr-4 text-slate-500`}>{item.product.category}</td>
-              <td className={`${pad} pr-4 text-center font-black text-amber-600`}>
-                {item.pendingQuantity}
-              </td>
-              <td className={`${pad} pr-4 text-center font-semibold text-slate-600`}>
-                {item.product.availableStock}
-              </td>
-              <td className={`${pad} pr-4 text-center`}>
-                <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                  {item.status}
-                </span>
-              </td>
-              {onRestore && (
-                <td className={`${pad} pr-4 text-center`}>
-                  {(() => {
-                    const inStock =
-                      (item.product?.availableStock || 0) >= (item.pendingQuantity || 0);
-                    const busy = restoringId === item._id;
-                    return (
-                      <button
-                        onClick={() => onRestore(item)}
-                        disabled={!inStock || busy}
-                        title={
-                          inStock
-                            ? "Move to the customer's selection list & email them to confirm"
-                            : "Not enough stock yet to fulfil this backorder"
-                        }
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {busy ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : (
-                          <ArrowRightCircle size={14} />
-                        )}
-                        {busy ? "Moving..." : "To Selection List"}
-                      </button>
-                    );
-                  })()}
-                </td>
-              )}
+    <>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200/80">
+              <th className={`${pad} pr-4`}>Indent No</th>
+              <th className={`${pad} pr-4`}>SKU Code</th>
+              {showCustomer && <th className={`${pad} pr-4`}>Customer</th>}
+              <th className={`${pad} pr-4`}>Category</th>
+              <th className={`${pad} pr-4 text-center`}>Items</th>
+              <th className={`${pad} pr-4 text-center`}>Pending Qty</th>
+              <th className={`${pad} pr-4 text-center`}>Status</th>
+              <th className={`${pad} pr-4 text-center`}>Details</th>
+              {onRestore && <th className={`${pad} pr-4 text-center`}>Action</th>}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {groups.map((group) => {
+              const { primary, lines, indentNumber } = group;
+              const totalQty = lines.reduce((sum, l) => sum + (l.pendingQuantity || 0), 0);
+              const isMulti = lines.length > 1;
+              const key = indentNumber || primary._id;
+
+              return (
+                <tr key={key} className="text-slate-700">
+                  <td className={`${pad} pr-4 font-bold text-amber-700`}>
+                    {indentNumber || "—"}
+                  </td>
+                  <td className={`${pad} pr-4 font-bold text-slate-800`}>
+                    {isMulti ? `${primary.product.code} +${lines.length - 1} more` : primary.product.code}
+                  </td>
+                  {showCustomer && (
+                    <td className={`${pad} pr-4 text-slate-600 font-semibold`}>
+                      {primary.customer?.name || "—"}
+                    </td>
+                  )}
+                  <td className={`${pad} pr-4 text-slate-500`}>
+                    {isMulti ? "Multiple" : primary.product.category}
+                  </td>
+                  <td className={`${pad} pr-4 text-center font-semibold text-slate-600`}>
+                    {lines.length}
+                  </td>
+                  <td className={`${pad} pr-4 text-center font-black text-amber-600`}>
+                    {totalQty}
+                  </td>
+                  <td className={`${pad} pr-4 text-center`}>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                      {primary.status}
+                    </span>
+                  </td>
+                  <td className={`${pad} pr-4 text-center`}>
+                    <button
+                      onClick={() => setSelectedGroup(group)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-all"
+                      title="View pending indent details"
+                    >
+                      <Eye size={14} /> View
+                    </button>
+                  </td>
+                  {onRestore && (
+                    <td className={`${pad} pr-4 text-center`}>
+                      {isMulti ? (
+                        <span className="text-[11px] text-slate-400 font-medium">See details</span>
+                      ) : (
+                        (() => {
+                          const inStock =
+                            (primary.product?.availableStock || 0) >= (primary.pendingQuantity || 0);
+                          const busy = restoringId === primary._id;
+                          return (
+                            <button
+                              onClick={() => onRestore(primary)}
+                              disabled={!inStock || busy}
+                              title={
+                                inStock
+                                  ? "Move to the customer's selection list & email them to confirm"
+                                  : "Not enough stock yet to fulfil this pending indent"
+                              }
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {busy ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <ArrowRightCircle size={14} />
+                              )}
+                              {busy ? "Moving..." : "To Selection List"}
+                            </button>
+                          );
+                        })()
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal
+        isOpen={!!selectedGroup}
+        onClose={() => setSelectedGroup(null)}
+        title={`Pending Indent ${selectedGroup?.indentNumber || ""}`}
+        size="lg"
+      >
+        {selectedGroup && (
+          <div className="flex flex-col gap-4">
+            <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-2.5">SKU Code</th>
+                    {showCustomer && <th className="px-4 py-2.5">Customer</th>}
+                    <th className="px-4 py-2.5">Category</th>
+                    <th className="px-4 py-2.5 text-center">Pending Qty</th>
+                    <th className="px-4 py-2.5 text-center">Current Stock</th>
+                    <th className="px-4 py-2.5 text-center">Status</th>
+                    {onRestore && <th className="px-4 py-2.5 text-center">Action</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {selectedGroup.lines.map((line) => {
+                    const inStock =
+                      (line.product?.availableStock || 0) >= (line.pendingQuantity || 0);
+                    const busy = restoringId === line._id;
+                    return (
+                      <tr key={line._id}>
+                        <td className="px-4 py-2.5 font-bold text-slate-800">{line.product.code}</td>
+                        {showCustomer && (
+                          <td className="px-4 py-2.5 text-slate-600 font-semibold">
+                            {line.customer?.name || "—"}
+                          </td>
+                        )}
+                        <td className="px-4 py-2.5 text-slate-500">{line.product.category}</td>
+                        <td className="px-4 py-2.5 text-center font-black text-amber-600">
+                          {line.pendingQuantity}
+                        </td>
+                        <td className="px-4 py-2.5 text-center font-semibold text-slate-600">
+                          {line.product.availableStock}
+                        </td>
+                        <td className="px-4 py-2.5 text-center">
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            {line.status}
+                          </span>
+                        </td>
+                        {onRestore && (
+                          <td className="px-4 py-2.5 text-center">
+                            <button
+                              onClick={() => onRestore(line)}
+                              disabled={!inStock || busy}
+                              title={
+                                inStock
+                                  ? "Move to the customer's selection list & email them to confirm"
+                                  : "Not enough stock yet to fulfil this pending indent"
+                              }
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {busy ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <ArrowRightCircle size={14} />
+                              )}
+                              {busy ? "Moving..." : "To Selection List"}
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </>
   );
 };
 

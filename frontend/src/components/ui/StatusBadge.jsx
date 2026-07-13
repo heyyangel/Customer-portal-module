@@ -6,24 +6,18 @@ export const StatusBadge = ({ status, className }) => {
     switch (normalizedStatus) {
       case "draft":
         return { label: "Draft", variant: "neutral" };
-      case "pending_approval":
       case "pending":
       case "booked":
-        return { label: "Pending Approval", variant: "warning" };
-      case "approved":
-        return { label: "Approved", variant: "primary" };
+      case "po received":
+        return { label: "PO Received", variant: "warning" };
       case "ready":
-        return { label: "Ready", variant: "primary" };
-      case "production":
-        return { label: "In Production", variant: "primary" };
+      case "ready for dispatch":
+        return { label: "Ready for Dispatch", variant: "primary" };
       case "dispatched":
         return { label: "Dispatched", variant: "primary" };
       case "delivered":
-        return { label: "Delivered", variant: "success" };
       case "completed":
-        return { label: "Completed", variant: "success" };
-      case "rejected":
-        return { label: "Rejected", variant: "danger" };
+        return { label: "Delivered", variant: "success" };
       case "cancelled":
         return { label: "Cancelled", variant: "neutral" };
       default:

@@ -30,9 +30,8 @@ export const mapOrder = (order) => {
     totalQuantity,
     estimatedValue: order.totalValue || 0,
     grandTotal: order.grandTotal || 0,
-    orderValue: order.grandTotal || order.totalValue || 0, // For ApprovalTable
+    orderValue: order.grandTotal || order.totalValue || 0,
     priority: order.priority || 'Medium',
-    assignedTo: order.assignedToRole || 'Unassigned',
     createdDate: order.createdAt || order.date || new Date().toISOString(),
     auditLogs: (order.auditLogs || []).map((log) => ({
       id: log._id || Math.random().toString(),
@@ -52,10 +51,52 @@ export const mapOrder = (order) => {
   };
 };
 
+// The backend stores one flat Order document per line item, sharing a single
+// orderId (booking id) across every item confirmed together. Group them back
+// into one booking with a combined items array so Order History shows one
+// row per booking instead of one row per line item.
+const groupIntoBookings = (rawOrders) => {
+  const byBookingId = new Map();
+  for (const raw of rawOrders) {
+    const key = raw.orderId || raw._id;
+    if (!byBookingId.has(key)) byBookingId.set(key, []);
+    byBookingId.get(key).push(raw);
+  }
+
+  return [...byBookingId.values()].map((rows) => {
+    // Prefer a row whose status reflects progress beyond the initial stage if
+    // the group's rows ever diverge; otherwise use the first.
+    const initialStages = ['PO Received', 'Booked'];
+    const primary = rows.find((r) => !initialStages.includes(r.status)) || rows[0];
+    const mapped = mapOrder(primary);
+    const items = rows.flatMap((r) => mapOrder(r).items);
+    const totalQuantity = items.reduce(
+      (sum, item) => sum + (item.orderQuantity || item.quantity || 0),
+      0,
+    );
+    // Per-SKU line detail (raw quantity fields) for the detailed export.
+    const lineItems = rows.map((r) => ({
+      skuCode: r.skuCode,
+      msilCode: r.msilCode || null,
+      bookedQty: r.bookedQty ?? r.requestedQty ?? 0,   // originally booked
+      confirmedQty: r.confirmedQty ?? r.requestedQty ?? 0, // fulfilled from stock
+      pendingQty: r.pendingQty ?? 0,                    // indent (unfulfilled)
+    }));
+
+    return {
+      ...mapped,
+      lineItemIds: rows.map((r) => r._id),
+      items,
+      lineItems,
+      totalQuantity,
+    };
+  });
+};
+
 export const ordersApi = {
   getAll: async () => {
     const response = await api.get('/orders');
-    return (response.data.data || []).map(mapOrder);
+    return groupIntoBookings(response.data.data || []);
   },
 
   getById: async (id) => {
@@ -79,13 +120,12 @@ export const ordersApi = {
     return mapOrder(response.data.data);
   },
 
-  updateStatus: async (id, status, remarks) => {
-    const response = await api.put(`/orders/${id}/status`, { status, remarks });
-    return mapOrder(response.data.data);
-  },
-
-  assignOrder: async (id, role, remarks) => {
-    const response = await api.put(`/orders/${id}/assign`, { role, remarks });
-    return mapOrder(response.data.data);
+  // A "booking" spans multiple underlying line-item Order documents that
+  // share one orderId — updating status must apply to every one of them.
+  updateStatus: async (ids, status, remarks) => {
+    const targets = Array.isArray(ids) ? ids : [ids];
+    await Promise.all(
+      targets.map((id) => api.put(`/orders/${id}/status`, { status, remarks })),
+    );
   }
 };

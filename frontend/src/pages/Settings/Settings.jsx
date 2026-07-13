@@ -1,26 +1,105 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { User, Bell, Shield, Key, Mail, Building, Globe } from 'lucide-react';
+import { User, Bell, Mail, Building, Globe, Shield, Key } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
 import { motion } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export const Settings = () => {
-  const { user } = useUserStore();
+  const { user, updateProfile, changePassword } = useUserStore();
   const [activeTab, setActiveTab] = useState('profile');
 
+  const isAdmin = user?.role === 'Admin';
+
+  // The Security (change password) tab is available to admins only.
   const tabs = [
     { id: 'profile', label: 'My Profile', icon: User },
     { id: 'preferences', label: 'Preferences', icon: Globe },
-    { id: 'security', label: 'Security', icon: Shield },
+    ...(isAdmin ? [{ id: 'security', label: 'Security', icon: Shield }] : []),
   ];
+
+  // --- Profile ---
+  const [name, setName] = useState(user?.user || user?.name || '');
+  const [avatar, setAvatar] = useState(user?.avatar || null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const fileRef = useRef(null);
+
+  const handlePhotoPick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      toast.error('Please choose an image under 1 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(reader.result); // data URL
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    const res = await updateProfile({ user: name, avatar });
+    setSavingProfile(false);
+    if (res.success) toast.success('Profile updated');
+    else toast.error(res.error || 'Failed to update profile');
+  };
+
+  // --- Preferences (persist on toggle) ---
+  const [prefs, setPrefs] = useState({
+    emailNotifications: user?.preferences?.emailNotifications ?? true,
+    pushNotifications: user?.preferences?.pushNotifications ?? false,
+  });
+
+  const togglePref = async (key) => {
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    const res = await updateProfile({ preferences: next });
+    if (res.success) toast.success('Preferences saved');
+    else {
+      setPrefs(prefs); // roll back
+      toast.error(res.error || 'Failed to save preferences');
+    }
+  };
+
+  // --- Security (change own password) ---
+  const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
+  const [savingPw, setSavingPw] = useState(false);
+
+  const handleUpdatePassword = async () => {
+    if (!pw.current || !pw.next) {
+      toast.error('Please fill in all password fields.');
+      return;
+    }
+    if (pw.next.length < 5) {
+      toast.error('New password must be at least 5 characters.');
+      return;
+    }
+    if (pw.next !== pw.confirm) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    setSavingPw(true);
+    const res = await changePassword(pw.current, pw.next);
+    setSavingPw(false);
+    if (res.success) {
+      toast.success('Password updated');
+      setPw({ current: '', next: '', confirm: '' });
+    } else {
+      toast.error(res.error || 'Failed to update password');
+    }
+  };
+
+  const initial = (name || user?.email || 'U').charAt(0);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-slate-800 tracking-tight">Account Settings</h2>
-          <p className="text-sm text-slate-500 mt-1">Manage your personal profile, security, and app preferences.</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage your personal profile{isAdmin ? ', security,' : ''} and app preferences.
+          </p>
         </div>
       </div>
 
@@ -32,15 +111,15 @@ export const Settings = () => {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`relative flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-all z-10 overflow-hidden ${
-                activeTab === tab.id 
-                ? 'text-white shadow-md shadow-[#1a5b9e]/20' 
+                activeTab === tab.id
+                ? 'text-white shadow-md shadow-[#1a5b9e]/20'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
               }`}
             >
               {activeTab === tab.id && (
                 <motion.div
                   layoutId="activeTab_settings"
-                  className="absolute inset-0 bg-gradient-to-r from-[#1a5b9e] to-[#15467a] z-[-1]"
+                  className="absolute inset-0 bg-linear-to-r from-[#1a5b9e] to-[#15467a] z-[-1]"
                   transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 />
               )}
@@ -57,19 +136,24 @@ export const Settings = () => {
               <Card>
                 <CardContent className="p-6">
                   <h3 className="text-lg font-bold text-slate-800 mb-6">Profile Information</h3>
-                  
+
                   <div className="flex flex-col md:flex-row gap-8 items-start">
                     <div className="flex flex-col items-center gap-4">
-                      <div className="w-32 h-32 rounded-full bg-slate-200 border-4 border-white shadow-md flex items-center justify-center text-4xl font-black text-slate-500 uppercase">
-                        {(user?.user || user?.name || 'U').charAt(0)}
+                      <div className="w-32 h-32 rounded-full bg-slate-200 border-4 border-white shadow-md flex items-center justify-center text-4xl font-black text-slate-500 uppercase overflow-hidden">
+                        {avatar ? (
+                          <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          initial
+                        )}
                       </div>
-                      <Button variant="outline" size="sm">Change Photo</Button>
+                      <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoPick} className="hidden" />
+                      <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Change Photo</Button>
                     </div>
-                    
+
                     <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
-                        <input type="text" defaultValue={user?.user || user?.name} className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
+                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
                       </div>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Address</label>
@@ -91,9 +175,11 @@ export const Settings = () => {
                       </div>
                     </div>
                   </div>
-                
+
                   <div className="mt-8 flex justify-end">
-                    <Button variant="primary">Save Changes</Button>
+                    <Button variant="primary" onClick={handleSaveProfile} disabled={savingProfile}>
+                      {savingProfile ? 'Saving...' : 'Save Changes'}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -104,7 +190,7 @@ export const Settings = () => {
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-lg font-bold text-slate-800 mb-6">App Preferences</h3>
-                
+
                 <div className="flex flex-col gap-8">
                   {/* Notifications */}
                   <div>
@@ -115,10 +201,10 @@ export const Settings = () => {
                           <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600"><Mail size={14}/></div>
                           <div>
                             <p className="font-bold text-slate-800 text-sm">Email Notifications</p>
-                            <p className="text-xs text-slate-500">Receive order updates and approvals via email.</p>
+                            <p className="text-xs text-slate-500">Receive booking updates via email.</p>
                           </div>
                         </div>
-                        <input type="checkbox" defaultChecked className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500" />
+                        <input type="checkbox" checked={prefs.emailNotifications} onChange={() => togglePref('emailNotifications')} className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer" />
                       </div>
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
@@ -128,7 +214,7 @@ export const Settings = () => {
                             <p className="text-xs text-slate-500">Receive browser notifications for real-time events.</p>
                           </div>
                         </div>
-                        <input type="checkbox" className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500" />
+                        <input type="checkbox" checked={prefs.pushNotifications} onChange={() => togglePref('pushNotifications')} className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer" />
                       </div>
                     </div>
                   </div>
@@ -137,41 +223,45 @@ export const Settings = () => {
             </Card>
           )}
 
-          {activeTab === 'security' && (
+          {activeTab === 'security' && isAdmin && (
             <Card>
               <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-6">Security Settings</h3>
-                
+                <h3 className="text-lg font-bold text-slate-800 mb-1">Change Password</h3>
+                <p className="text-sm text-slate-500 mb-6">Update the password you use to sign in.</p>
+
                 <div className="flex flex-col gap-6 max-w-md">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Current Password</label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input type="password" placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
+                      <input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Password</label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input type="password" placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
+                      <input type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Confirm New Password</label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input type="password" placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
+                      <input type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} placeholder="••••••••" className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 font-medium text-slate-800" />
                     </div>
                   </div>
-                  
+
                   <div className="mt-2">
-                    <Button variant="primary">Update Password</Button>
+                    <Button variant="primary" onClick={handleUpdatePassword} disabled={savingPw}>
+                      {savingPw ? 'Updating...' : 'Update Password'}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
           )}
+
         </div>
       </div>
     </div>

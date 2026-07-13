@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../components/common/PageHeader";
 import { BulkUploadCard } from "../../components/upload/BulkUploadCard";
@@ -16,14 +16,15 @@ import {
   resolveTemplate,
 } from "../../utils/excelParser";
 import { api } from "../../services/api";
+import { reservationsApi } from "../../services/reservations";
 import toast from "react-hot-toast";
-import { Play, Download, AlertTriangle, Check } from "lucide-react";
+import { Play, Download, AlertTriangle, Check, RefreshCw } from "lucide-react";
 
 export const BulkUpload = () => {
   const navigate = useNavigate();
-  const { file, rows, summary, setFile, setRows, updateRow, reset } =
+  const { file, rows, summary, setFile, setRows, updateRow, removeRow, reset: resetStore } =
     useBulkImportStore();
-  const { addItem, confirmBooking } = useCartStore();
+  const { confirmBooking, fetchReservations } = useCartStore();
   const { user } = useUserStore();
   const isAdmin = user?.role === "Admin";
   const category = user?.customerCategory || "Non-MSIL";
@@ -31,19 +32,47 @@ export const BulkUpload = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [excludedRowIds, setExcludedRowIds] = useState([]);
+
+  // Clearing the session also clears row exclusions.
+  const reset = () => {
+    setExcludedRowIds([]);
+    resetStore();
+  };
+
+  // Selected = importable rows that haven't been excluded.
+  const selectedRowIds = rows
+    .filter((r) => (r.status === "valid" || r.status === "warning") && !excludedRowIds.includes(r.id))
+    .map((r) => r.id);
+
+  const toggleRow = (id) =>
+    setExcludedRowIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+
+  const toggleAllRows = (ids) =>
+    setExcludedRowIds((prev) => {
+      const allSelected = ids.every((id) => !prev.includes(id));
+      // If all are currently selected, exclude them all; otherwise select all.
+      return allSelected
+        ? Array.from(new Set([...prev, ...ids]))
+        : prev.filter((id) => !ids.includes(id));
+    });
+
+  const validateRows = async (rowsToValidate) => {
+    const response = await api.post("/reservations/validate-bulk", { rows: rowsToValidate });
+    const validatedRows = response.data.data;
+    setRows(validatedRows);
+    return validatedRows;
+  };
 
   const handleUpload = async (uploadedFile) => {
     setIsParsing(true);
     setFile(uploadedFile);
     try {
       const parsed = await parseExcelFile(uploadedFile);
-      
-      // Call backend to validate the rows
-      const response = await api.post("/reservations/validate-bulk", { rows: parsed });
-      const validatedRows = response.data.data;
-      
-      setRows(validatedRows);
-      
+      const validatedRows = await validateRows(parsed);
+
       const hasErrors = validatedRows.some(r => r.status === 'error');
       if (hasErrors) {
         toast.error("File parsed with validation errors");
@@ -58,17 +87,65 @@ export const BulkUpload = () => {
     }
   };
 
-  const handleImportToCart = async () => {
-    const validRows = rows.filter(
-      (r) => r.status === "valid" || r.status === "warning",
-    );
+  // Rows edited after upload lose their server validation ('pending' status)
+  // until they go through validate-bulk again.
+  const hasPendingRows = rows.some((r) => r.status === "pending");
+  const warningCount = rows.filter((r) => r.status === "warning").length;
+  const selectedCount = rows.filter(
+    (r) => (r.status === "valid" || r.status === "warning") && selectedRowIds.includes(r.id),
+  ).length;
+  const canConfirm =
+    summary.invalidRows === 0 && selectedCount > 0 && !hasPendingRows && !isConfirming;
+  // A "clean" import (no warnings) gets the highlighted primary confirm.
+  const isClean = warningCount === 0;
 
-    let successCount = 0;
-    for (const row of validRows) {
-      if (row.product) {
-        await addItem(row.product, row.quantity);
-        successCount++;
+  const handleRevalidate = async () => {
+    setIsParsing(true);
+    try {
+      await validateRows(rows);
+      toast.success("Rows re-validated");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to re-validate rows");
+    } finally {
+      setIsParsing(false);
+    }
+  };
+
+  // Creates reservations for all valid rows in parallel, removes the rows
+  // that imported successfully (so a retry never duplicates them), and
+  // returns the failure list.
+  const importValidRows = async () => {
+    const validRows = rows.filter(
+      (r) => (r.status === "valid" || r.status === "warning") && r.product && selectedRowIds.includes(r.id),
+    );
+    const results = await Promise.allSettled(
+      validRows.map((row) => reservationsApi.create(row.product.id, row.quantity)),
+    );
+    const failures = [];
+    results.forEach((r, idx) => {
+      const row = validRows[idx];
+      if (r.status === "fulfilled") {
+        removeRow(row.id);
+      } else {
+        const err = r.reason;
+        failures.push(`${row.skuCode || row.msilCode}: ${err?.response?.data?.message || err?.message || "failed"}`);
       }
+    });
+    await fetchReservations();
+    return { attempted: validRows.length, failures };
+  };
+
+  const handleImportToCart = async () => {
+    const { attempted, failures } = await importValidRows();
+    const successCount = attempted - failures.length;
+
+    if (failures.length > 0) {
+      toast.error(
+        `${successCount} of ${attempted} items imported. Failed: ${failures.slice(0, 3).join("; ")}${failures.length > 3 ? "…" : ""}`,
+        { duration: 8000 },
+      );
+      setShowConfirm(false);
+      return;
     }
 
     toast.success(`Successfully imported ${successCount} items to selection list`);
@@ -79,23 +156,19 @@ export const BulkUpload = () => {
 
   const handleDirectConfirm = async () => {
     setIsConfirming(true);
-    const validRows = rows.filter((r) => r.status === "valid" || r.status === "warning");
-
     try {
-      // 1. Create reservations sequentially
-      for (const row of validRows) {
-        if (row.product) {
-          const res = await addItem(row.product, row.quantity);
-          if (!res.success) throw new Error(res.error);
-        }
+      // 1. Create reservations for every valid row.
+      const { failures } = await importValidRows();
+      if (failures.length > 0) {
+        throw new Error(`Some items could not be reserved: ${failures.slice(0, 3).join("; ")}${failures.length > 3 ? "…" : ""}`);
       }
-      
+
       // 2. Confirm booking immediately
       await confirmBooking();
-      
-      toast.success("Bulk booking confirmed successfully! Sent to Approval Workflow.", { icon: "🚀" });
+
+      toast.success("Bulk booking confirmed successfully!", { icon: "🚀" });
       reset();
-      navigate("/orders/history?status=pending");
+      navigate("/orders/history");
     } catch (err) {
       toast.error(err.message || err.response?.data?.message || "Failed to confirm bulk booking directly.");
     } finally {
@@ -106,7 +179,7 @@ export const BulkUpload = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Bulk Order Import"
+        title="Bulk Booking Import"
         actions={
           <ERPButton variant="outline" size="sm" onClick={() => reset()}>
             Reset Session
@@ -115,7 +188,7 @@ export const BulkUpload = () => {
       />
 
       <p className="text-slate-600">
-        Import customer orders using an Excel template.
+        Import customer bookings using an Excel template.
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-[30fr_70fr] gap-8 items-start">
@@ -131,13 +204,11 @@ export const BulkUpload = () => {
             <h4 className="font-bold text-slate-800 mb-2">Validation Rules</h4>
             <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
               <li>SKU Code / MSIL Code & Quantity are validated.</li>
-              <li>Missing SKU will look up by MSIL Code.</li>
               <li>Duplicates will be automatically merged.</li>
               <li>Quantities exceeding available stock will be flagged.</li>
             </ul>
 
             {isAdmin ? (
-              // Admins aren't tied to a category — offer both templates.
               <div className="mt-4 flex flex-col gap-2">
                 <p className="text-xs font-semibold text-slate-500">Download an import template:</p>
                 <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate("MSIL")}>
@@ -190,29 +261,62 @@ export const BulkUpload = () => {
                 </div>
               )}
 
-              <ExcelPreviewTable rows={rows} onUpdateRow={updateRow} />
+              <ExcelPreviewTable
+                rows={rows}
+                onUpdateRow={updateRow}
+                selectedIds={selectedRowIds}
+                onToggleRow={toggleRow}
+                onToggleAll={toggleAllRows}
+              />
 
               <div className="flex justify-end mt-4 gap-4">
+                {hasPendingRows && (
+                  <ERPButton
+                    variant="outline"
+                    size="lg"
+                    disabled={isParsing || isConfirming}
+                    onClick={handleRevalidate}
+                    className="w-full md:w-auto px-6"
+                  >
+                    <RefreshCw size={16} className={`mr-2 ${isParsing ? "animate-spin" : ""}`} />
+                    Re-validate Edited Rows
+                  </ERPButton>
+                )}
+                {/* When any row is a warning, steer the user to "Add to Selection
+                    List" (highlighted) so they can review before booking. When
+                    every row is valid, highlight "Confirm Booking" instead. */}
                 <ERPButton
                   variant="outline"
                   size="lg"
-                  disabled={summary.invalidRows > 0 || summary.validRows === 0 || isConfirming}
+                  disabled={!canConfirm}
                   onClick={() => setShowConfirm(true)}
-                  className="w-full md:w-auto px-6 border-slate-300 text-slate-700 hover:bg-slate-50"
+                  className={`w-full md:w-auto px-6 ${
+                    !isClean
+                      ? "bg-primary-600 hover:bg-primary-700 text-white border-primary-600 ring-2 ring-primary-300"
+                      : "border-slate-300 text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
                   <Play size={16} className="mr-2" />
-                  Add to Selection List
+                  Add to Selection List ({selectedCount})
                 </ERPButton>
 
                 <ERPButton
                   variant="success"
                   size="lg"
-                  disabled={summary.invalidRows > 0 || summary.validRows === 0 || isConfirming}
+                  disabled={!canConfirm}
                   onClick={handleDirectConfirm}
-                  className="bg-green-600 hover:bg-green-700 w-full md:w-auto px-8 shadow-md"
+                  className={`w-full md:w-auto px-8 shadow-md ${
+                    isClean
+                      ? "bg-green-600 hover:bg-green-700 ring-2 ring-green-300"
+                      : "bg-green-600/70 hover:bg-green-700"
+                  }`}
                 >
                   <Check size={18} className="mr-2 text-white" />
-                  {isConfirming ? "Confirming..." : "Confirm Booking Directly"}
+                  {isConfirming
+                    ? "Confirming..."
+                    : isClean
+                    ? "Confirm Booking Directly"
+                    : `Confirm with ${warningCount} warning${warningCount === 1 ? "" : "s"}`}
                 </ERPButton>
               </div>
             </>
@@ -229,7 +333,7 @@ export const BulkUpload = () => {
         onClose={() => setShowConfirm(false)}
         onConfirm={handleImportToCart}
         title="Confirm Bulk Import"
-        description={`You are about to import ${summary.validRows} valid rows (${summary.totalQuantity} items) to the Order Cart. Existing manual cart entries will not be overwritten, duplicate products will be merged.`}
+        description={`You are about to import ${selectedCount} selected row${selectedCount === 1 ? "" : "s"} to the Selection List. Existing manual entries will not be overwritten, duplicate products will be merged.`}
         confirmText="Confirm Import"
       />
     </div>

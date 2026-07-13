@@ -11,12 +11,12 @@ export const seedDefaultRoles = async () => {
       {
         name: 'Administrator',
         description: 'Full system access',
-        permissions: ['manage_users', 'manage_roles', 'approve_orders', 'manage_inventory', 'view_reports']
+        permissions: ['manage_users', 'manage_roles', 'manage_orders', 'manage_inventory', 'view_reports']
       },
       {
         name: 'Sales Manager',
-        description: 'Can manage and approve orders',
-        permissions: ['approve_orders', 'view_reports']
+        description: 'Can manage orders',
+        permissions: ['manage_orders', 'view_reports']
       },
       {
         name: 'Inventory Manager',

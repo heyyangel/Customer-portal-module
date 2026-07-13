@@ -9,7 +9,7 @@ export const SummaryCard = ({
     { label: "Total Line Items", value: `${totalProducts} Products` },
     { label: "Cumulative Quantity", value: `${totalQuantity} Units` },
     {
-      label: "Estimated Order Value",
+      label: "Estimated Booking Value",
       value: `₹${subtotal.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -27,7 +27,7 @@ export const SummaryCard = ({
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-3.5 shadow-sm select-none">
       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 pb-2">
-        Financial Order Summary
+        Financial Booking Summary
       </h3>
       <div className="flex flex-col gap-2.5">
         {lines.map((l, idx) => (

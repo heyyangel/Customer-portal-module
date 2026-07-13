@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/Card';
-import { TrendingUp, Package, Clock, CheckCircle, AlertTriangle, Users, Truck, PackageX, Loader2 } from 'lucide-react';
+import { Package, Clock, CheckCircle, AlertTriangle, Users, Truck, PackageX, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useUserStore } from '../../store/userStore';
 
@@ -18,8 +18,8 @@ export const KPIStats = () => {
   }, []);
 
   if (loading) {
-    const skeletonCount = user?.role === 'Admin' ? 7 : 6;
-    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-7' : 'xl:grid-cols-6';
+    const skeletonCount = user?.role === 'Admin' ? 6 : 5;
+    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
     return (
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-4`}>
         {Array.from({ length: skeletonCount }).map((_, i) => (
@@ -41,16 +41,10 @@ export const KPIStats = () => {
       icon: Package, color: 'primary'
     },
     {
-      id: 2, title: 'Active Orders',
+      id: 2, title: 'In Process',
       value: stats?.bookedOrders?.toLocaleString() ?? '—',
-      sub: `${stats?.totalOrders ?? 0} total orders`,
+      sub: `${stats?.totalOrders ?? 0} total bookings`,
       icon: Clock, color: 'warning'
-    },
-    {
-      id: 3, title: 'Approved Orders',
-      value: stats?.approvedOrders?.toLocaleString() ?? '—',
-      sub: 'Awaiting dispatch',
-      icon: TrendingUp, color: 'indigo'
     },
     {
       id: 4, title: 'Delivered',
@@ -72,7 +66,7 @@ export const KPIStats = () => {
           icon: Truck, color: 'indigo'
         },
     {
-      id: 7, title: 'Pending Backorders',
+      id: 7, title: 'Raise Indent',
       value: stats?.pendingBackorders?.toLocaleString() ?? '—',
       sub: `${stats?.pendingBackorderQty ?? 0} units awaiting stock`,
       icon: PackageX, color: 'amber'

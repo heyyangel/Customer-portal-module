@@ -76,6 +76,8 @@ export const useCartStore = create((set, get) => ({
           _id: r._id,
           id: r.reservationId,
           status: r.status,
+          indentNumber: r.indentNumber || null, // PI-YYYY-###### (display id)
+          poNumber: r.poNumber || null,          // links this indent to its booking
           pendingQuantity: r.quantity,
           updatedAt: r.updatedAt,
           customer:
@@ -137,6 +139,31 @@ export const useCartStore = create((set, get) => ({
     } catch (err) {
       set({ error: err.message, loading: false });
     }
+  },
+
+  // Bulk delete: cancel several selected reservations together (by _id).
+  removeItems: async (reservationIds) => {
+    const targets = get().items.filter((i) => reservationIds.includes(i._id));
+    if (targets.length === 0) return { success: true, removed: 0, failed: [] };
+
+    set({ loading: true });
+    const results = await Promise.allSettled(
+      targets.map((item) => reservationsApi.cancel(item._id)),
+    );
+    const failed = [];
+    results.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        const err = r.reason;
+        failed.push({
+          code: targets[idx].product.code,
+          error: err?.response?.data?.message || err?.message || "failed",
+        });
+      }
+    });
+    const removed = targets.length - failed.length;
+    await get().fetchReservations();
+    set({ loading: false });
+    return { success: failed.length === 0, removed, failed };
   },
 
   updateQuantity: async (productCode, quantity) => {

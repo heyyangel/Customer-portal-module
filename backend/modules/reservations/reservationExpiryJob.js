@@ -76,7 +76,7 @@ export const runReservationExpiryChecks = async () => {
           `This is the final reminder to confirm your booking:<br/><br/>
            ${itemLine}<br/><br/>
            It is still in your selection list and will be <b>automatically cancelled</b> if not confirmed.
-           Please confirm it before then to place your order.`
+           Please confirm it before then to place your booking.`
         );
         continue;
       }

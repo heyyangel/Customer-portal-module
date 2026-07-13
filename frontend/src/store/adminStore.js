@@ -49,6 +49,15 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
+  resetUserPassword: async (userId, newPassword) => {
+    try {
+      await adminApi.resetUserPassword(userId, newPassword);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || "Failed to reset password" };
+    }
+  },
+
   updateUserRole: async (userId, roleId) => {
     try {
       const updatedUser = await adminApi.updateUserRole(userId, roleId);

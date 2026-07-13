@@ -112,6 +112,17 @@ const sendNotification = (userId, title, message, type = 'reservation') => {
   notifyUser(userId, { title, message, type });
 };
 
+// MOQ (Minimum Order Quantity) is enforced only for Non-MSIL customers. MSIL
+// customers may book any positive whole-number quantity. Throws when the rule
+// is violated; a no-op otherwise.
+const enforceMoq = (user, product, quantity) => {
+  if (user?.customerCategory === 'MSIL') return; // MSIL users are MOQ-exempt.
+  const moq = Number(product?.moq) || 0;
+  if (moq > 1 && quantity % moq !== 0) {
+    throw new Error(`Quantity must be a multiple of the Minimum Order Quantity (${moq}) for ${product.skuCode}.`);
+  }
+};
+
 export const getReservations = async (req, res, next) => {
   try {
     const reservations = await Reservation.find({ customerId: req.user._id, status: 'Reserved' });
@@ -158,16 +169,16 @@ export const getPendingReservations = async (req, res, next) => {
 export const restoreBackorder = async (req, res, next) => {
   try {
     if (req.user.role !== 'Admin') {
-      return res.status(403).json({ success: false, message: 'Only an admin can move a backorder to the selection list.' });
+      return res.status(403).json({ success: false, message: 'Only an admin can move a pending indent to the selection list.' });
     }
 
     const reservation = await Reservation.findById(req.params.id).populate('customerId', 'user email company');
     if (!reservation) {
-      throw new Error('Backorder not found.');
+      throw new Error('Pending Indent not found.');
     }
 
     if (!['Pending', 'Partially Confirmed'].includes(reservation.status)) {
-      throw new Error('Only pending backorders can be moved to the selection list.');
+      throw new Error('Only pending indents can be moved to the selection list.');
     }
 
     const product = await findProductById(reservation.productId);
@@ -178,7 +189,7 @@ export const restoreBackorder = async (req, res, next) => {
     const available = Math.max(0, product.availableForSale);
     if (available < reservation.quantity) {
       throw new Error(
-        `Not enough stock to restore this backorder. Requires ${reservation.quantity}, only ${available} available.`
+        `Not enough stock to restore this pending indent. Requires ${reservation.quantity}, only ${available} available.`
       );
     }
 
@@ -197,21 +208,21 @@ export const restoreBackorder = async (req, res, next) => {
 
     await logEvent(
       req.user,
-      'Backorder Restored',
-      `Moved backorder ${reservation.reservationId} (${reservation.skuCode} x${reservation.quantity}) back to selection list.`,
+      'Pending Indent Restored',
+      `Moved pending indent ${reservation.reservationId} (${reservation.skuCode} x${reservation.quantity}) back to selection list.`,
       req
     );
 
     // Notify the customer in-app and by email.
     sendNotification(
       customer._id || reservation.customerId,
-      'Backorder Back in Stock',
+      'Pending Indent Back in Stock',
       `${reservation.skuCode} (${reservation.quantity} units) is back in stock and moved to your selection list. Confirm it from your dashboard.`,
       'reservation'
     );
 
     if (customer.email) {
-      const subject = `Your backorder ${reservation.skuCode} is back in stock — confirm it now`;
+      const subject = `Your pending indent ${reservation.skuCode} is back in stock — confirm it now`;
       const body = `
         <p>Hi ${customerName},</p>
         <p>Good news! An item that was previously <strong>out of stock</strong> in your booking is now available again:</p>
@@ -221,7 +232,7 @@ export const restoreBackorder = async (req, res, next) => {
           <tr><td style="padding: 4px 12px; color: #777;">Quantity</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.quantity}</td></tr>
           <tr><td style="padding: 4px 12px; color: #777;">Reference</td><td style="padding: 4px 12px; font-weight: bold;">${reservation.reservationId}</td></tr>
         </table>
-        <p>It has been moved back to your <strong>selection list</strong>. Please log in to your dashboard and <strong>confirm this order</strong> to secure the stock. Note this selection will expire in 7 days if not confirmed.</p>
+        <p>It has been moved back to your <strong>selection list</strong>. Please log in to your dashboard and <strong>confirm this booking</strong> to secure the stock. Note this selection will expire in 7 days if not confirmed.</p>
         <p>Thank you.</p>
       `;
       // Fire-and-forget: email failure should not fail the request.
@@ -241,10 +252,11 @@ export const restoreBackorder = async (req, res, next) => {
 export const createReservation = async (req, res, next) => {
 
   try {
-    const { productId, quantity } = req.body;
+    const { productId } = req.body;
+    const quantity = Number(req.body.quantity);
 
-    if (!productId || !quantity || quantity <= 0) {
-      throw new Error('Valid Product ID and Quantity are required.');
+    if (!productId || !Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error('Valid Product ID and a whole-number Quantity are required.');
     }
 
     const product = await findProductById(productId);
@@ -252,23 +264,22 @@ export const createReservation = async (req, res, next) => {
       throw new Error('Product not found.');
     }
 
-    const moq = product.moq || 1;
-    if (quantity % moq !== 0) {
-      throw new Error(`Order quantity must be a multiple of the Minimum Order Quantity (${moq}).`);
-    }
+    // MOQ applies to Non-MSIL customers only; MSIL customers are exempt.
+    enforceMoq(req.user, product, quantity);
 
     // NOTE: Stock availability is intentionally NOT validated here. Customers may
     // book any quantity, even beyond availableForSale. Stock is only checked and
     // deducted at confirmation time (see confirmBooking), where any unfulfillable
-    // quantity is moved to a Pending backorder.
+    // quantity is moved to a Pending Indent.
 
-    // MSIL Code Validation
-    if (!product.msilCode) {
-      throw new Error(`Product ${product.skuCode} does not have an MSIL Code assigned.`);
-    }
-    const msilDoc = await MsilCode.findOne({ code: product.msilCode });
-    if (!msilDoc || msilDoc.status !== 'Active') {
-      throw new Error(`MSIL Code ${product.msilCode} for product ${product.skuCode} is inactive or does not exist.`);
+    // MSIL Code Validation — only enforced when a code is actually assigned.
+    // Products without an MSIL Code are allowed to be booked; the MSIL field
+    // is simply left blank throughout the UI.
+    if (product.msilCode) {
+      const msilDoc = await MsilCode.findOne({ code: product.msilCode });
+      if (!msilDoc || msilDoc.status !== 'Active') {
+        throw new Error(`MSIL Code ${product.msilCode} for product ${product.skuCode} is inactive or does not exist.`);
+      }
     }
 
     // Stock is NOT allocated/deducted at booking time — only at confirmation.
@@ -306,9 +317,9 @@ export const createReservation = async (req, res, next) => {
 export const updateReservationQuantity = async (req, res, next) => {
 
   try {
-    const { quantity } = req.body;
-    if (!quantity || quantity <= 0) {
-      throw new Error('Quantity must be greater than zero.');
+    const quantity = Number(req.body.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error('Quantity must be a whole number greater than zero.');
     }
 
     const reservation = await Reservation.findById(req.params.id);
@@ -325,10 +336,8 @@ export const updateReservationQuantity = async (req, res, next) => {
       throw new Error('Product not found.');
     }
 
-    const moq = product.moq || 1;
-    if (quantity % moq !== 0) {
-      throw new Error(`Order quantity must be a multiple of the Minimum Order Quantity (${moq}).`);
-    }
+    // MOQ applies to Non-MSIL customers only; MSIL customers are exempt.
+    enforceMoq(req.user, product, quantity);
 
     // No stock validation/adjustment — stock is only allocated at confirmation time.
     reservation.quantity = quantity;
@@ -382,7 +391,20 @@ const runConfirmBooking = async (req, session) => {
 
   const year = new Date().getFullYear();
   const orderSeq = await nextSequence(`order-${year}`, session);
-  const orderNumber = `SO-${year}-${String(orderSeq).padStart(6, '0')}`;
+  const seqStr = String(orderSeq).padStart(6, '0');
+  // One confirmation produces THREE identifiers:
+  //   Booking ID       BO-2026-001312   (the booking)
+  //   Pending Indent   PI-2026-001312   (same number, different 2-char prefix)
+  //   PO Number        PO-260713-4821   (DIFFERENT, time-based, its own sequence)
+  // The booking id and pending-indent id share the sequence so they line up;
+  // the PO number is independent so it can be an externally-meaningful ref.
+  const orderNumber = `BO-${year}-${seqStr}`;
+  const indentId = `PI-${year}-${seqStr}`;
+  // Time-based PO number: PO-YYMMDD-<4 digit seq> (customer-supplied wins).
+  const now = new Date();
+  const stamp = `${String(year).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const poSeq = await nextSequence(`po-${year}`, session);
+  const poNumber = req.body.poNumber || `PO-${stamp}-${String(poSeq).padStart(4, '0')}`;
   const ordersToCreate = [];
   const summary = [];
   const dateNow = new Date();
@@ -405,7 +427,7 @@ const runConfirmBooking = async (req, session) => {
         orderId: orderNumber,
         brand: brandFromModel(product),
         user: req.user._id,
-        status: 'Booked', // Equivalent to 'Pending Approval' for the new schema
+        status: 'PO Received',
         orderTimestamp: dateNow,
         company: req.user.company || 'Shraddha Impex',
         role: req.user.role || 'user',
@@ -415,10 +437,10 @@ const runConfirmBooking = async (req, session) => {
         requestedQty: confirmedQty, // kept = confirmedQty for back-compat
         bookedQty: requestedQty,    // what the customer originally booked
         confirmedQty,               // what was actually fulfilled from stock
-        pendingQty,                 // unfulfilled remainder (backorder)
-        poNumber: req.body.poNumber || `BOOK-${Date.now()}`,
+        pendingQty,                 // unfulfilled remainder (pending indent)
+        poNumber,
         remarks: pendingQty > 0
-          ? `Partially confirmed (${confirmedQty}/${requestedQty}). ${pendingQty} moved to Pending backorder. ${req.body.remarks || ''}`.trim()
+          ? `Partially confirmed (${confirmedQty}/${requestedQty}). ${pendingQty} moved to Pending Indent. ${req.body.remarks || ''}`.trim()
           : (req.body.remarks || 'Confirmed ERP reservation booking.'),
         msilCode: product.msilCode || null,
         boxNo: product.boxNo || null,
@@ -436,9 +458,12 @@ const runConfirmBooking = async (req, session) => {
       resItem.quantity = confirmedQty;
     } else {
       // Some (or all) of the quantity could not be fulfilled — keep the
-      // unfulfilled remainder as a Pending backorder reservation.
+      // unfulfilled remainder as a Pending Indent reservation. Tag it with the
+      // PI id (matches the booking id's number) and the PO number for linkage.
       resItem.status = confirmedQty > 0 ? 'Partially Confirmed' : 'Pending';
       resItem.quantity = pendingQty;
+      resItem.indentNumber = indentId;
+      resItem.poNumber = poNumber;
       if (confirmedQty > 0) resItem.confirmedAt = dateNow;
     }
     await resItem.save({ session });
@@ -469,7 +494,7 @@ const runConfirmBooking = async (req, session) => {
   const totalConfirmed = summary.reduce((sum, s) => sum + s.confirmedQty, 0);
   const totalPending = summary.reduce((sum, s) => sum + s.pendingQty, 0);
 
-  return { orderNumber, createdOrders, summary, totalConfirmed, totalPending };
+  return { orderNumber, poNumber, indentId, createdOrders, summary, totalConfirmed, totalPending };
 };
 
 export const confirmBooking = async (req, res, next) => {
@@ -495,18 +520,18 @@ export const confirmBooking = async (req, res, next) => {
       session.endSession();
     }
 
-    const { orderNumber, createdOrders, summary, totalConfirmed, totalPending } = result;
+    const { orderNumber, poNumber, indentId, createdOrders, summary, totalConfirmed, totalPending } = result;
 
     // Side effects run only after a successful commit.
     const notifMessage = totalPending > 0
-      ? `Booking ${orderNumber}: ${totalConfirmed} units confirmed, ${totalPending} units moved to Pending (backorder).`
-      : `Your reservation booking ${orderNumber} is confirmed and pending ERP approval.`;
+      ? `Booking ${orderNumber} (PO ${poNumber}): ${totalConfirmed} units confirmed, ${totalPending} units moved to Pending Indent ${indentId}.`
+      : `Your booking ${orderNumber} (PO ${poNumber}) is confirmed.`;
     sendNotification(req.user._id, 'Booking Confirmed', notifMessage, 'order');
 
     const who = req.user.company || req.user.user || req.user.email;
     notifyAdmins({
-      title: totalPending > 0 ? 'Order Confirmed (with Backorder)' : 'Order Confirmed',
-      message: `${who} confirmed booking ${orderNumber} — ${totalConfirmed} units confirmed${totalPending > 0 ? `, ${totalPending} units on backorder` : ''}.`,
+      title: totalPending > 0 ? 'Booking Confirmed (with Pending Indent)' : 'Booking Confirmed',
+      message: `${who} confirmed booking ${orderNumber} — ${totalConfirmed} units confirmed${totalPending > 0 ? `, ${totalPending} units on pending indent` : ''}.`,
       type: 'order',
     });
 
@@ -518,6 +543,8 @@ export const confirmBooking = async (req, res, next) => {
       success: true,
       data: {
         orderId: orderNumber,
+        poNumber,
+        indentId,
         order: createdOrders[0] || null,
         orders: createdOrders,
         summary,
@@ -543,6 +570,23 @@ export const validateBulk = async (req, res, next) => {
 
     const validatedRows = [];
 
+    // Prefetch every referenced SKU / MSIL code with one $in query per brand
+    // collection, so validation stays fast for large uploads.
+    const skuList = [...new Set(rows.map(r => r.skuCode?.trim()).filter(Boolean))];
+    const msilList = [...new Set(rows.map(r => r.msilCode?.trim()).filter(Boolean))];
+    const bySku = new Map();
+    const byMsil = new Map();
+    for (const Model of [ProductKoken, ProductBIX, ProductIMADA]) {
+      if (skuList.length) {
+        const found = await Model.find({ skuCode: { $in: skuList } });
+        for (const p of found) if (!bySku.has(p.skuCode)) bySku.set(p.skuCode, p);
+      }
+      if (msilList.length) {
+        const found = await Model.find({ msilCode: { $in: msilList } });
+        for (const p of found) if (p.msilCode && !byMsil.has(p.msilCode)) byMsil.set(p.msilCode, p);
+      }
+    }
+
     for (let row of rows) {
       const errors = [];
       const warnings = [];
@@ -558,52 +602,59 @@ export const validateBulk = async (req, res, next) => {
         continue;
       }
 
-      if (quantity <= 0) {
-        errors.push("Quantity must be greater than zero.");
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        errors.push("Quantity must be a whole number greater than zero.");
       }
 
-      // Lookup product
+      // Lookup product. A provided SKU must exist — a row is never silently
+      // rebadged onto a different product via its MSIL code.
       let product = null;
       if (skuCode) {
-        product = await ProductKoken.findOne({ skuCode });
-        if (!product) product = await ProductBIX.findOne({ skuCode });
-        if (!product) product = await ProductIMADA.findOne({ skuCode });
-      }
-      
-      if (!product && msilCode && !skuCode) {
-        product = await ProductKoken.findOne({ msilCode });
-        if (!product) product = await ProductBIX.findOne({ msilCode });
-        if (!product) product = await ProductIMADA.findOne({ msilCode });
-      }
-
-      if (!product) {
-        errors.push("Product not found in database.");
-        validatedRows.push({ ...row, status: 'error', errors });
-        continue;
-      }
-
-      // If both provided, verify match
-      if (skuCode && msilCode) {
-        if (product.msilCode !== msilCode) {
-          errors.push(`Provided MSIL Code (${msilCode}) does not match Product MSIL Code (${product.msilCode}).`);
+        product = bySku.get(skuCode) || null;
+        if (!product) {
+          const viaMsil = msilCode ? byMsil.get(msilCode) : null;
+          errors.push(viaMsil
+            ? `SKU Code ${skuCode} does not exist in the database (MSIL Code ${msilCode} belongs to SKU ${viaMsil.skuCode} — correct the SKU or clear it to import by MSIL Code).`
+            : `SKU Code ${skuCode} does not exist in the database.`);
+          validatedRows.push({ ...row, status: 'error', errors });
+          continue;
+        }
+      } else {
+        product = byMsil.get(msilCode) || null;
+        if (!product) {
+          errors.push(`MSIL Code ${msilCode} does not exist in the database.`);
+          validatedRows.push({ ...row, status: 'error', errors });
+          continue;
         }
       }
 
-      // Check Stock — no longer a hard error. Over-booking is allowed; any
-      // shortfall becomes a Pending backorder at confirmation time.
-      if (product.availableForSale < quantity) {
-        const shortfall = quantity - Math.max(0, product.availableForSale);
-        warnings.push(`Only ${Math.max(0, product.availableForSale)} in stock. ${shortfall} unit(s) will go to Pending.`);
+      // If both provided, verify they identify the same product.
+      if (skuCode && msilCode && product.msilCode !== msilCode) {
+        errors.push(`Provided MSIL Code (${msilCode}) does not match Product MSIL Code (${product.msilCode}).`);
       }
 
-      // Check MSIL Active
+      // Check Stock — no longer a hard error. Over-booking is allowed; any
+      // shortfall becomes a Pending Indent at confirmation time.
+      if (product.availableForSale < quantity) {
+        const shortfall = quantity - Math.max(0, product.availableForSale);
+        warnings.push(`Only ${Math.max(0, product.availableForSale)} in stock. ${shortfall} unit(s) will move to Pending Indent.`);
+      }
+
+      // Check MSIL Active — only enforced when the product actually has one
+      // assigned. A product with no MSIL Code is valid; the field is left blank.
       const targetMsil = product.msilCode;
-      if (!targetMsil) {
-        errors.push(`Product ${product.skuCode} does not have an MSIL Code assigned.`);
-      } else {
+      if (targetMsil) {
         const msilDoc = await MsilCode.findOne({ code: targetMsil });
         if (!msilDoc || msilDoc.status !== 'Active') {
           errors.push(`MSIL Code ${targetMsil} is inactive or does not exist.`);
+        }
+      }
+
+      // MOQ applies to Non-MSIL customers only; MSIL customers are exempt.
+      if (req.user?.customerCategory !== 'MSIL') {
+        const moq = Number(product.moq) || 0;
+        if (moq > 1 && Number.isInteger(quantity) && quantity % moq !== 0) {
+          errors.push(`Quantity must be a multiple of the Minimum Order Quantity (${moq}).`);
         }
       }
 
@@ -613,15 +664,23 @@ export const validateBulk = async (req, res, next) => {
         status = 'warning';
       }
 
+      // Auto-map both directions: SKU→MSIL and MSIL→SKU. When the product has
+      // no MSIL Code, surface "-" in the preview rather than a blank/null.
+      const resolvedMsil = product.msilCode || "-";
+
       validatedRows.push({
         ...row,
+        // Auto-fill codes from the matched product so rows imported by MSIL
+        // Code alone (or with a mistyped SKU) carry the canonical SKU Code.
+        skuCode: product.skuCode,
+        msilCode: resolvedMsil,
         status,
         errors,
         warnings,
         product: product ? {
           id: product._id,
           code: product.skuCode,
-          msilCode: product.msilCode,
+          msilCode: resolvedMsil,
           name: product.skuCode,
           category: product.category,
           availableStock: product.availableForSale,

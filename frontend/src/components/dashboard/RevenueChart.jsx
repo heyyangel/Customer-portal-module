@@ -6,14 +6,14 @@ import { Card, CardContent } from '../ui/Card';
 import { api } from '../../services/api';
 import { Loader2, Download } from 'lucide-react';
 
-const COLORS = { booked: '#6366f1', confirmed: '#10b981', confirmedEdge: '#059669', pending: '#f59e0b' };
+const COLORS = { order: '#6366f1', confirmed: '#10b981', confirmedEdge: '#059669', pending: '#f59e0b' };
 
 // Custom tooltip — shows demand vs fulfilled and the pending gap for the month.
 const TrendTooltip = ({ active, payload, label }) => {
   if (!active || !payload || payload.length === 0) return null;
   const row = payload[0].payload;
   const items = [
-    { label: 'Booked', value: row.booked, color: COLORS.booked },
+    { label: 'Booking', value: row.booked, color: COLORS.booked },
     { label: 'Confirmed', value: row.confirmed, color: COLORS.confirmed },
     { label: 'Unfulfilled', value: row.unfulfilled, color: COLORS.pending },
   ];
@@ -35,16 +35,26 @@ const TrendTooltip = ({ active, payload, label }) => {
   );
 };
 
+const RANGE_OPTIONS = [
+  { value: '15d', label: 'Last 15 Days' },
+  { value: '1m', label: 'Last 1 Month' },
+  { value: '3m', label: 'Last 3 Months' },
+  { value: '6m', label: 'Last 6 Months' },
+  { value: '12m', label: 'Last 12 Months' },
+];
+
 export const RevenueChart = () => {
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('6m');
 
   useEffect(() => {
-    api.get('/dashboard/stats')
+    setLoading(true);
+    api.get('/dashboard/stats', { params: { range } })
       .then(r => setTrend(r.data.data?.monthlyTrend || []))
       .catch(() => setTrend([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [range]);
 
   const handleExport = () => {
     if (trend.length === 0) return;
@@ -65,7 +75,7 @@ export const RevenueChart = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', 'order_trend.csv');
+    link.setAttribute('download', `order_trend_${range}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -77,7 +87,7 @@ export const RevenueChart = () => {
         <div className="flex items-center justify-between mb-2">
           <div>
             <h3 className="font-bold text-slate-800">Demand vs Fulfilment</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Monthly booked vs confirmed — the gap is pending</p>
+            <p className="text-xs text-slate-400 mt-0.5">Bookings vs confirmed — the gap is pending</p>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -89,9 +99,15 @@ export const RevenueChart = () => {
               <Download size={14} />
               Export
             </button>
-            <span className="text-xs bg-slate-50 text-slate-600 border border-slate-200 font-bold px-2 py-1.5 rounded-md">
-              Last 6 Months
-            </span>
+            <select
+              value={range}
+              onChange={(e) => setRange(e.target.value)}
+              className="text-xs bg-slate-50 text-slate-600 border border-slate-200 font-bold px-2 py-1.5 rounded-md outline-none cursor-pointer focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+            >
+              {RANGE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -127,6 +143,8 @@ export const RevenueChart = () => {
                   tickLine={false}
                   tick={{ fontSize: 12, fill: '#64748b', fontWeight: 600 }}
                   dy={10}
+                  interval="preserveStartEnd"
+                  minTickGap={20}
                 />
                 <YAxis
                   axisLine={false}
@@ -145,7 +163,7 @@ export const RevenueChart = () => {
                 />
                 {/* Booked = demand ceiling (indigo line + faint fill) */}
                 <Area
-                  name="Booked" dataKey="booked" type="monotone"
+                  name="Book" dataKey="booked" type="monotone"
                   stroke={COLORS.booked} strokeWidth={2} fill="url(#fillBooked)"
                   dot={{ r: 3, fill: COLORS.booked, strokeWidth: 0 }}
                   activeDot={{ r: 5 }} animationDuration={1000}

@@ -6,7 +6,7 @@ This is the backend API service for the Shraddha Impex ERP and Customer Portal. 
 
 - **Authentication Module**: Secure JWT-based registration and login system.
 - **User Management**: Endpoints to list all users and manage their statuses.
-- **Role-Based Access Control (RBAC)**: Advanced permission system supporting dynamic creation of roles (e.g., Administrator, Sales Manager) and granular permission arrays (e.g., `['approve_orders', 'manage_inventory']`).
+- **Role-Based Access Control (RBAC)**: Advanced permission system supporting dynamic creation of roles (e.g., Administrator, Sales Manager) and granular permission arrays (e.g., `['manage_orders', 'manage_inventory']`).
 - **Data Migration System**: Includes robust `migrate.js` script to migrate and map data seamlessly from Excel files (Koken, BIX, IMADA) to MongoDB.
 - **Temporary Reservations Module**: Handles cart reservations and stock blocking with automatic expirations before final PO conversion.
 - **Email Notifications**: Integrated `mailer.js` utility for sending automated notifications across workflows.

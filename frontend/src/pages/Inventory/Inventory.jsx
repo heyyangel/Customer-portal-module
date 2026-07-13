@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Boxes, PackageSearch, AlertTriangle, Search } from 'lucide-react';
+import { Boxes, AlertTriangle, Search } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
 import { Pagination } from '../../components/ui/Pagination';
@@ -37,8 +37,6 @@ export const Inventory = () => {
       switch (sortBy) {
         case 'stock-asc': return a.availableStock - b.availableStock;
         case 'stock-desc': return b.availableStock - a.availableStock;
-        case 'price-asc': return a.price - b.price;
-        case 'price-desc': return b.price - a.price;
         case 'name-desc': return (b.name || '').localeCompare(a.name || '');
         case 'name-asc': 
         default:
@@ -51,7 +49,6 @@ export const Inventory = () => {
 
   const totalSKUs = products.length;
   const lowStockItems = products.filter(p => p.availableStock < (p.moq * 2 || 10)).length;
-  const totalValue = products.reduce((acc, p) => acc + (p.price * p.availableStock), 0);
 
   // Clamp the page in case the filtered set shrank, then slice for the current page.
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
@@ -73,7 +70,7 @@ export const Inventory = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="bg-white border-slate-200">
           <CardContent className="p-6 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
@@ -94,18 +91,6 @@ export const Inventory = () => {
             <div>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Low Stock</p>
               <h3 className="text-2xl font-black text-slate-900">{lowStockItems}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-slate-200">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-success-50 flex items-center justify-center text-success-600">
-              <PackageSearch size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Est. Value</p>
-              <h3 className="text-2xl font-black text-slate-900">₹{totalValue.toLocaleString()}</h3>
             </div>
           </CardContent>
         </Card>
@@ -135,8 +120,6 @@ export const Inventory = () => {
                 <option value="name-desc">Sort: Z to A</option>
                 <option value="stock-desc">Sort: Stock (High-Low)</option>
                 <option value="stock-asc">Sort: Stock (Low-High)</option>
-                <option value="price-desc">Sort: Price (High-Low)</option>
-                <option value="price-asc">Sort: Price (Low-High)</option>
               </select>
             </div>
           </div>
@@ -151,7 +134,6 @@ export const Inventory = () => {
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">Product Name</th>
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">Brand / Category</th>
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs text-center">In Stock</th>
-                  <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs text-right">Unit Price</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -182,15 +164,12 @@ export const Inventory = () => {
                           {product.availableStock}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-700">
-                        ₹{product.price.toLocaleString()}
-                      </td>
                     </motion.tr>
                   ))}
                 </AnimatePresence>
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-medium">
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
                       No products found matching your search.
                     </td>
                   </tr>

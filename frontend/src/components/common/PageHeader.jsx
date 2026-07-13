@@ -30,7 +30,7 @@ export const PageHeader = ({
           </div>
           <div className="hidden sm:block text-slate-300">•</div>
           <div>
-            Order Date:{" "}
+            Booking Date:{" "}
             <span className="text-slate-700 font-bold">{orderDate}</span>
           </div>
           {(userName || userEmail) && (

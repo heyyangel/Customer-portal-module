@@ -7,9 +7,9 @@ import toast from 'react-hot-toast';
 
 // Available granular permissions in the system
 const PERMISSIONS = [
-  { id: 'view_orders', label: 'View Orders' },
-  { id: 'create_order', label: 'Create Orders' },
-  { id: 'approve_orders', label: 'Approve Orders' },
+  { id: 'view_orders', label: 'View Bookings' },
+  { id: 'create_order', label: 'Create Bookings' },
+  { id: 'manage_orders', label: 'Manage Bookings' },
   { id: 'manage_inventory', label: 'Manage Inventory' },
   { id: 'view_reports', label: 'Reports' },
   { id: 'manage_users', label: 'Manage Users' },

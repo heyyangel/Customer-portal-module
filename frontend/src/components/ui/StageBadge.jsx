@@ -4,9 +4,10 @@ import { Badge } from './Badge';
 export const StageBadge = ({ stage, className }) => {
   const getBadgeConfig = (s) => {
     switch (s) {
-      case 'Pending Approval':
+      case 'PO Received':
+      case 'Booked':
         return 'warning';
-      case 'Approved':
+      case 'Ready for Dispatch':
       case 'Ready For Dispatch':
       case 'Production Started':
       case 'Production Planning':
@@ -17,7 +18,6 @@ export const StageBadge = ({ stage, className }) => {
       case 'Delivered':
       case 'Completed':
         return 'success';
-      case 'Rejected':
       case 'Modification Required':
         return 'danger';
       default:

@@ -13,6 +13,7 @@ import productRoutes from './modules/products/product.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import reservationRoutes from './modules/reservations/reservation.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
+import roleRoutes from './modules/roles/role.routes.js';
 import apiRoutes from './routes/api.routes.js';
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/v1/products/:brand', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/reservations', reservationRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/roles', roleRoutes);
 app.use('/api', apiRoutes);
 app.use('/api/v1', apiRoutes); // also serve under /api/v1 so frontend api.get('/dashboard/stats') resolves
 

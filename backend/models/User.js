@@ -7,6 +7,11 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   company: { type: String, default: null },
   user: { type: String, default: null }, // Maps to 'USER' column
+  avatar: { type: String, default: null }, // Data URL or image link for the profile photo
+  preferences: {
+    emailNotifications: { type: Boolean, default: true },
+    pushNotifications: { type: Boolean, default: false },
+  },
   role: { type: String, enum: ['Admin', 'Customer'], default: 'Customer' },
   // Customer categorisation — drives which bulk-import template applies.
   customerCategory: { type: String, enum: ['MSIL', 'Non-MSIL'], default: 'Non-MSIL' },

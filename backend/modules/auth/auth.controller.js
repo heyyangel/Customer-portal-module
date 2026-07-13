@@ -85,5 +85,56 @@ export const getMe = async (req, res, next) => {
   }
 };
 
+// Self-service profile update. A user may change their own display name, photo
+// and notification preferences — but not their email, company, role or category
+// (those remain admin-controlled via user management).
+export const updateMe = async (req, res, next) => {
+  try {
+    const { user: name, avatar, preferences } = req.body;
+    const updates = {};
+    if (name !== undefined) updates.user = name;
+    if (avatar !== undefined) updates.avatar = avatar;
+    if (preferences && typeof preferences === 'object') {
+      if ('emailNotifications' in preferences) updates['preferences.emailNotifications'] = !!preferences.emailNotifications;
+      if ('pushNotifications' in preferences) updates['preferences.pushNotifications'] = !!preferences.pushNotifications;
+    }
+
+    const updated = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true });
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Change own password. Verifies the current password (supporting both legacy
+// bcrypt hashes and the plaintext scheme used elsewhere), then stores the new one.
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Current and new password are required.' });
+    }
+    if (String(newPassword).length < 5) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 5 characters.' });
+    }
+
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const isMatch = (user.password === currentPassword) || (await bcrypt.compare(currentPassword, user.password).catch(() => false));
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Current password is incorrect.' });
+    }
+
+    // Stored plaintext to remain consistent with the current auth scheme.
+    user.password = newPassword;
+    await user.save({ validateBeforeSave: false });
+
+    res.status(200).json({ success: true, message: 'Password updated successfully.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 

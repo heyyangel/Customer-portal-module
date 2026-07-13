@@ -1,15 +1,20 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+
+// Resolve a cell value for a column, honouring an optional col.format(value, item).
+const cellValue = (item, col) => {
+  const raw = item[col.key];
+  if (col.format) return col.format(raw, item);
+  return raw ?? 'N/A';
+};
 
 // Reusable function to format data for export
 const formatDataForExport = (data, columns) => {
   return data.map(item => {
     const row = {};
     columns.forEach(col => {
-      // Handle nested properties or custom formatting if needed
-      let value = item[col.key] ?? 'N/A';
-      row[col.label] = value;
+      row[col.label] = cellValue(item, col);
     });
     return row;
   });
@@ -32,21 +37,20 @@ export const exportToExcel = (data, columns, filename = 'export') => {
 export const exportToPDF = (data, columns, title = 'Report', filename = 'export') => {
   try {
     const doc = new jsPDF();
-    
+
     // Add Title
     doc.setFontSize(18);
     doc.text(title, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
-    
+
     // Table data
     const tableColumn = columns.map(col => col.label);
-    const tableRows = data.map(item => {
-      return columns.map(col => item[col.key] ?? 'N/A');
-    });
+    const tableRows = data.map(item => columns.map(col => String(cellValue(item, col))));
 
-    doc.autoTable({
+    // jspdf-autotable v5 removed the doc.autoTable() prototype API.
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 40,
@@ -54,7 +58,7 @@ export const exportToPDF = (data, columns, title = 'Report', filename = 'export'
       styles: { fontSize: 8 },
       headStyles: { fillColor: [30, 58, 138] }, // primary-900 color
     });
-    
+
     doc.save(`${filename}_${new Date().getTime()}.pdf`);
     return true;
   } catch (error) {
@@ -70,10 +74,10 @@ export const printData = (data, columns, title = 'Report') => {
       console.error("Popup blocked! Please allow popups for this site.");
       return false;
     }
-    
+
     const tableHeaders = columns.map(col => `<th>${col.label}</th>`).join('');
     const tableRows = data.map(item => {
-      const rowData = columns.map(col => `<td>${item[col.key] ?? 'N/A'}</td>`).join('');
+      const rowData = columns.map(col => `<td>${cellValue(item, col)}</td>`).join('');
       return `<tr>${rowData}</tr>`;
     }).join('');
 
@@ -107,7 +111,7 @@ export const printData = (data, columns, title = 'Report') => {
         </body>
       </html>
     `;
-    
+
     printWindow.document.write(htmlContent);
     printWindow.document.close();
     return true;

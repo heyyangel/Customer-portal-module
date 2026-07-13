@@ -34,9 +34,11 @@ export const parseExcelFile = async (file) => {
           const rowData = rawRows[i];
           // Skip completely empty rows
           if (!rowData || rowData.length === 0) continue;
-          const skuCode = String(rowData[cSKU] || "").trim();
-          const msilCode = String(rowData[cMSIL] || "").trim();
-          const quantity = Number(rowData[cQty]) || 0;
+          const skuCode = cSKU >= 0 ? String(rowData[cSKU] || "").trim() : "";
+          const msilCode = cMSIL >= 0 ? String(rowData[cMSIL] || "").trim() : "";
+          const quantity = cQty >= 0 ? Number(rowData[cQty]) || 0 : 0;
+          // Skip rows with no data at all (blank lines within the sheet).
+          if (!skuCode && !msilCode && !quantity) continue;
           const newRow = {
             id: `row-${i}-${Date.now()}`,
             originalRowNumber: i + 1,

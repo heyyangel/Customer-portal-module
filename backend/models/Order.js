@@ -13,8 +13,10 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Booked', 'Approved', 'Dispatched', 'Cancelled', 'Delivered'],
-    default: 'Booked'
+    // Admin-managed lifecycle: PO Received → Ready for Dispatch → Dispatched → Delivered.
+    // 'Booked'/'Cancelled' are retained only so pre-existing records still load.
+    enum: ['PO Received', 'Ready for Dispatch', 'Dispatched', 'Delivered', 'Booked', 'Cancelled'],
+    default: 'PO Received'
   },
   
   // Sheet columns
@@ -34,7 +36,6 @@ const orderSchema = new mongoose.Schema({
   expiryNotified: { type: Boolean, default: false }, // Maps to 'Expiry Notified'
   uniqueId: { type: String, default: null }, // Maps to 'Unique ID'
   statusTimestamp: { type: Date, default: null }, // Maps to 'Status_Timestamp'
-  assignedToRole: { type: String, default: null }, // Workflow stage owner (set via assignOrder)
   msilCode: { type: String, default: null }, // Maps to 'MSIL CODE'
   poDate: { type: Date, default: null }, // Maps to 'PO Date'
   supplyByDate: { type: Date, default: null }, // Maps to 'SupplyByDate'

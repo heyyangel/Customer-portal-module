@@ -44,7 +44,7 @@ export const ConversionSummary = () => {
   const chips = [
     { key: 'booked', label: 'Booked', value: booked, color: COLORS.booked, hint: 'total demand' },
     { key: 'confirmed', label: 'Confirmed', value: confirmed, color: COLORS.confirmed, hint: 'fulfilled' },
-    { key: 'pending', label: 'Pending', value: pending, color: COLORS.pending, hint: 'backorder' },
+    { key: 'pending', label: 'Pending Indent', value: pending, color: COLORS.pending, hint: 'awaiting stock' },
     { key: 'reserved', label: 'In List', value: reserved, color: COLORS.reserved, hint: 'awaiting confirm' },
   ];
 
@@ -52,7 +52,7 @@ export const ConversionSummary = () => {
     <div className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="font-bold text-slate-800">Booking-to-Order Conversion</h3>
+          <h3 className="font-bold text-slate-800">Booking Conversion</h3>
           <p className="text-xs text-slate-400 mt-0.5">How much booked demand has been fulfilled</p>
         </div>
       </div>
