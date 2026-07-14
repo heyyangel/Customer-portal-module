@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, PackagePlus } from "lucide-react";
 import toast from "react-hot-toast";
 
-// Qty cell with local edit state — commits on blur/Enter so typing intermediate
-// non-MOQ values isn't reverted mid-keystroke by the controlled input.
+// Qty cell with local edit state — commits on blur/Enter so a below-MOQ value
+// typed mid-keystroke isn't reverted by the controlled input.
 const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
   const rowMoq = Number(item.product.moq) || 0;
   const applyMoq = enforceMoq && rowMoq > 1;
@@ -24,8 +24,8 @@ const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
       setDraft(String(item.orderQuantity)); // revert invalid entry
       return;
     }
-    if (applyMoq && val % rowMoq !== 0) {
-      toast.error(`Quantity must be a multiple of the MOQ (${rowMoq})`);
+    if (applyMoq && val < rowMoq) {
+      toast.error(`Quantity must be at least the MOQ (${rowMoq})`);
       setDraft(String(item.orderQuantity));
       return;
     }
@@ -38,7 +38,7 @@ const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
         type="number"
         value={draft}
         min={applyMoq ? rowMoq : 1}
-        step={applyMoq ? rowMoq : 1}
+        step={1}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}

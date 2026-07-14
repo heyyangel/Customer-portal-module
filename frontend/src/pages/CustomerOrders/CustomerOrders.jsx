@@ -86,9 +86,9 @@ export const CustomerOrders = () => {
       return;
     }
 
-    // Non-MSIL customers must book in multiples of the product's MOQ.
-    if (moqApplies && data.quantity % productMoq !== 0) {
-      toast.error(`Quantity must be a multiple of the MOQ (${productMoq})`, { icon: "❌" });
+    // Non-MSIL customers must book at least the product's MOQ.
+    if (moqApplies && data.quantity < productMoq) {
+      toast.error(`Quantity must be at least the MOQ (${productMoq})`, { icon: "❌" });
       return;
     }
 
@@ -303,12 +303,12 @@ export const CustomerOrders = () => {
                     valueAsNumber: true,
                     validate: value => {
                       if (!Number.isInteger(value) || value < 1) return "Enter a whole-number quantity of at least 1";
-                      if (moqApplies && value % productMoq !== 0) return `Quantity must be a multiple of the MOQ (${productMoq})`;
+                      if (moqApplies && value < productMoq) return `Quantity must be at least the MOQ (${productMoq})`;
                       return true;
                     },
                   })}
                   type="number"
-                  step={moqApplies ? productMoq : 1}
+                  step={1}
                   min={moqApplies ? productMoq : 1}
                   placeholder="Enter Qty"
                   className="w-full px-4 py-3 border border-slate-200/80 rounded-xl outline-none focus:border-[#1a5b9e] focus:ring-2 focus:ring-[#1a5b9e]/20 text-slate-800 font-bold placeholder-slate-300 transition-all bg-slate-50/50 focus:bg-white"
@@ -316,15 +316,15 @@ export const CustomerOrders = () => {
                 />
               </div>
               {errors.quantity && <span className="text-xs text-red-500 mt-1 font-semibold">{errors.quantity.message}</span>}
-              {/* MOQ reminder for Non-MSIL: quantity must be at least, and a multiple of, the MOQ. */}
+              {/* MOQ reminder for Non-MSIL: quantity must be at least the MOQ. */}
               {moqApplies && selectedProduct && (
-                Number.isInteger(watchQuantity) && watchQuantity >= 1 && watchQuantity % productMoq !== 0 ? (
+                Number.isInteger(watchQuantity) && watchQuantity >= 1 && watchQuantity < productMoq ? (
                   <span className="text-xs text-red-500 mt-1 font-semibold">
-                    Enter a quantity equal to or more than the MOQ ({productMoq}), in multiples of {productMoq}.
+                    Enter {productMoq} or more units (MOQ {productMoq}).
                   </span>
                 ) : (
                   <span className="text-[11px] text-slate-400 mt-1 font-medium">
-                    Minimum {productMoq} units — enter in multiples of {productMoq}.
+                    Minimum {productMoq} units — enter {productMoq} or more.
                   </span>
                 )
               )}
@@ -338,7 +338,7 @@ export const CustomerOrders = () => {
             {/* ADD TO LIST BUTTON */}
             <button
               type="submit"
-              disabled={loading || !selectedProduct || !Number.isInteger(watchQuantity) || watchQuantity < 1 || (moqApplies && watchQuantity % productMoq !== 0)}
+              disabled={loading || !selectedProduct || !Number.isInteger(watchQuantity) || watchQuantity < 1 || (moqApplies && watchQuantity < productMoq)}
               className="w-full py-3.5 mt-2 bg-gradient-to-r from-[#1a5b9e] to-[#15467a] hover:from-[#15467a] hover:to-[#0f345a] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed tracking-wider text-sm active:scale-[0.98]"
             >
               <span className="text-lg font-light leading-none mb-0.5">+</span> ADD TO LIST

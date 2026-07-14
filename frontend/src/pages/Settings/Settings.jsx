@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { User, Bell, Mail, Building, Globe, Shield, Key } from 'lucide-react';
+import { User, Bell, Mail, Building, Globe, Shield, Key, Trash2 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -23,6 +23,7 @@ export const Settings = () => {
   const [name, setName] = useState(user?.user || user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [removingPhoto, setRemovingPhoto] = useState(false);
   const fileRef = useRef(null);
 
   const handlePhotoPick = (e) => {
@@ -35,6 +36,21 @@ export const Settings = () => {
     const reader = new FileReader();
     reader.onload = () => setAvatar(reader.result); // data URL
     reader.readAsDataURL(file);
+  };
+
+  // Clear the photo and persist immediately, so removal sticks without
+  // needing a separate Save.
+  const handleRemovePhoto = async () => {
+    setRemovingPhoto(true);
+    const res = await updateProfile({ user: name, avatar: null });
+    setRemovingPhoto(false);
+    if (res.success) {
+      setAvatar(null);
+      if (fileRef.current) fileRef.current.value = ''; // allow re-picking the same file
+      toast.success('Photo removed');
+    } else {
+      toast.error(res.error || 'Failed to remove photo');
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -147,7 +163,23 @@ export const Settings = () => {
                         )}
                       </div>
                       <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoPick} className="hidden" />
-                      <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Change Photo</Button>
+                      <div className="flex flex-col items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                          {avatar ? 'Change Photo' : 'Upload Photo'}
+                        </Button>
+                        {avatar && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRemovePhoto}
+                            disabled={removingPhoto}
+                            className="text-error-600 border-error-200 hover:bg-error-50"
+                          >
+                            <Trash2 size={14} className="mr-1.5" />
+                            {removingPhoto ? 'Removing...' : 'Remove Photo'}
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -112,14 +112,14 @@ const sendNotification = (userId, title, message, type = 'reservation') => {
   notifyUser(userId, { title, message, type });
 };
 
-// MOQ (Minimum Order Quantity) is enforced only for Non-MSIL customers. MSIL
-// customers may book any positive whole-number quantity. Throws when the rule
-// is violated; a no-op otherwise.
+// MOQ (Minimum Order Quantity) is enforced only for Non-MSIL customers: the
+// quantity must be at least the MOQ (any amount at or above it is allowed).
+// MSIL customers are exempt. Throws when the rule is violated.
 const enforceMoq = (user, product, quantity) => {
   if (user?.customerCategory === 'MSIL') return; // MSIL users are MOQ-exempt.
   const moq = Number(product?.moq) || 0;
-  if (moq > 1 && quantity % moq !== 0) {
-    throw new Error(`Quantity must be a multiple of the Minimum Order Quantity (${moq}) for ${product.skuCode}.`);
+  if (moq > 1 && quantity < moq) {
+    throw new Error(`Quantity must be at least the Minimum Order Quantity (${moq}) for ${product.skuCode}.`);
   }
 };
 
@@ -651,10 +651,11 @@ export const validateBulk = async (req, res, next) => {
       }
 
       // MOQ applies to Non-MSIL customers only; MSIL customers are exempt.
+      // The quantity must be at least the MOQ.
       if (req.user?.customerCategory !== 'MSIL') {
         const moq = Number(product.moq) || 0;
-        if (moq > 1 && Number.isInteger(quantity) && quantity % moq !== 0) {
-          errors.push(`Quantity must be a multiple of the Minimum Order Quantity (${moq}).`);
+        if (moq > 1 && Number.isInteger(quantity) && quantity < moq) {
+          errors.push(`Quantity must be at least the Minimum Order Quantity (${moq}).`);
         }
       }
 
