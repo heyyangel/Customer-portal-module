@@ -79,7 +79,7 @@ export const ConversionSummary = () => {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-black text-slate-900 tracking-tight leading-none">{rate}%</span>
+              <span className="text-3xl font-bold text-slate-900 tracking-tight leading-none">{rate}%</span>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Converted</span>
             </div>
           </div>
@@ -122,7 +122,7 @@ export const ConversionSummary = () => {
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{c.label}</span>
                   </div>
-                  <p className="text-xl font-black text-slate-900 mt-1 tabular-nums">{c.value.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-slate-900 mt-1 tabular-nums">{c.value.toLocaleString()}</p>
                   <p className="text-[10px] text-slate-400 font-medium">{c.hint}</p>
                 </div>
               ))}

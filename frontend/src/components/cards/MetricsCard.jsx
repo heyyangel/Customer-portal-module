@@ -65,7 +65,7 @@ export const MetricsCard = () => {
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
                 {item.label}
               </p>
-              <h3 className="text-xl font-black text-slate-800">
+              <h3 className="text-xl font-bold text-slate-800">
                 {item.value.toLocaleString()}
               </h3>
             </div>

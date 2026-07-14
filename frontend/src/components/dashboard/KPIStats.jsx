@@ -124,9 +124,9 @@ export const KPIStats = () => {
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-3xl font-black text-slate-800 tracking-tight group-hover:text-slate-900 transition-colors">{stat.value}</h3>
+                  <h3 className="text-3xl font-bold text-slate-800 tracking-tight group-hover:text-slate-900 transition-colors">{stat.value}</h3>
                   <p className="text-[10px] font-bold text-slate-500 uppercase mt-1 tracking-widest">{stat.title}</p>
-                  <p className="text-[11px] font-medium text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-500 transition-colors">{stat.sub}</p>
+                  <p className="kpi-tile-sub text-[11px] font-medium text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-500 transition-colors">{stat.sub}</p>
                 </div>
               </CardContent>
             </Card>

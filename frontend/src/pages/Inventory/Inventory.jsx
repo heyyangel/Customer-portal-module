@@ -78,7 +78,7 @@ export const Inventory = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total SKUs</p>
-              <h3 className="text-2xl font-black text-slate-900">{totalSKUs}</h3>
+              <h3 className="text-2xl font-bold text-slate-900">{totalSKUs}</h3>
             </div>
           </CardContent>
         </Card>
@@ -90,7 +90,7 @@ export const Inventory = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Low Stock</p>
-              <h3 className="text-2xl font-black text-slate-900">{lowStockItems}</h3>
+              <h3 className="text-2xl font-bold text-slate-900">{lowStockItems}</h3>
             </div>
           </CardContent>
         </Card>

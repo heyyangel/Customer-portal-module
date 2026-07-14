@@ -52,8 +52,14 @@ export const useUserStore = create((set) => ({
       const user = await usersApi.getCurrentUser();
       set({ user, loading: false });
     } catch (err) {
-      localStorage.removeItem('token');
-      set({ error: "Session expired", user: null, loading: false });
+      // Only a 401 means the token is actually bad. Discarding it on any error
+      // (a 429, or the API being down) logs the user out over a transient blip.
+      if (err.response?.status === 401) {
+        localStorage.removeItem('token');
+        set({ error: "Session expired", user: null, loading: false });
+      } else {
+        set({ error: "Could not load your session", loading: false });
+      }
     }
   },
 

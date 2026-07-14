@@ -75,19 +75,19 @@ export const Backorders = () => {
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
             Pending Indents
           </p>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">{distinctIndents}</h3>
+          <h3 className="text-2xl font-bold text-slate-900 mt-1">{distinctIndents}</h3>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
             Pending Indent Lines
           </p>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">{pendingItems.length}</h3>
+          <h3 className="text-2xl font-bold text-slate-900 mt-1">{pendingItems.length}</h3>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-amber-200/70 shadow-sm">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
             Total Pending Qty
           </p>
-          <h3 className="text-2xl font-black text-amber-600 mt-1">{totalPendingQty}</h3>
+          <h3 className="text-2xl font-bold text-amber-600 mt-1">{totalPendingQty}</h3>
         </div>
       </div>
 

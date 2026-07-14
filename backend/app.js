@@ -42,12 +42,14 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Routes
-import { apiLimiter, authLimiter } from './middlewares/rateLimiter.js';
+import { apiLimiter } from './middlewares/rateLimiter.js';
 
 // Apply general rate limiter to all /api routes
 app.use('/api', apiLimiter);
 
-app.use('/api/v1/auth', authLimiter, authRoutes);
+// authLimiter is applied per-route inside the auth router (login/register only),
+// not here — mounting it on the whole router also throttled /me.
+app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/products/:brand', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
