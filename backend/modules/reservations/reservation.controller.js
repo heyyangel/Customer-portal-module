@@ -161,6 +161,22 @@ export const getPendingReservations = async (req, res, next) => {
   }
 };
 
+// Count of cancelled bookings — selection-list items that never became an
+// order: auto-cancelled after the 7-day window ('Expired') or removed by the
+// customer ('Cancelled'). Count only; used for the Booking History metric tile.
+export const getCancelledCount = async (req, res, next) => {
+  try {
+    const filter = { status: { $in: ['Expired', 'Cancelled'] } };
+    if (req.user.role !== 'Admin') {
+      filter.customerId = req.user._id;
+    }
+    const count = await Reservation.countDocuments(filter);
+    res.status(200).json({ success: true, data: { count } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Admin action: when fresh stock arrives, a Pending backorder can be moved back
 // into the customer's active selection list so they can re-confirm it. The
 // customer is emailed and notified to go confirm it from their dashboard.

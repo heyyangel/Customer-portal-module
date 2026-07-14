@@ -9,7 +9,7 @@ import { useCartStore } from "../../store/cartStore";
 import { useProductStore } from "../../store/productStore";
 
 export const OrderHistory = () => {
-  const { fetchOrders } = useOrderHistoryStore();
+  const { fetchOrders, fetchCancelledCount } = useOrderHistoryStore();
   const { fetchPendingReservations } = useCartStore();
   const { fetchAllProducts } = useProductStore();
 
@@ -19,7 +19,9 @@ export const OrderHistory = () => {
     fetchPendingReservations();
     // Products give live Available Quantity for the detailed export.
     fetchAllProducts();
-  }, [fetchOrders, fetchPendingReservations, fetchAllProducts]);
+    // Cancelled bookings (expired/removed reservations) for the metric tile.
+    fetchCancelledCount();
+  }, [fetchOrders, fetchPendingReservations, fetchAllProducts, fetchCancelledCount]);
 
   return (
     <div className="flex flex-col gap-6 relative">

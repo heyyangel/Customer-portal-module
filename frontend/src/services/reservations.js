@@ -11,6 +11,11 @@ export const reservationsApi = {
     return response.data.data || [];
   },
 
+  getCancelledCount: async () => {
+    const response = await api.get('/reservations/cancelled-count');
+    return response.data.data?.count ?? 0;
+  },
+
   create: async (productId, quantity) => {
     const response = await api.post('/reservations', { productId, quantity });
     return response.data.data;

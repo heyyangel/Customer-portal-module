@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getReservations,
   getPendingReservations,
+  getCancelledCount,
   restoreBackorder,
   createReservation,
   updateReservationQuantity,
@@ -19,7 +20,9 @@ router.route('/')
   .get(getReservations)
   .post(createReservation);
 
+// Static paths must precede the '/:id' routes below, or Express matches them as an id.
 router.get('/pending', getPendingReservations);
+router.get('/cancelled-count', getCancelledCount);
 router.post('/:id/restore', restoreBackorder);
 
 router.route('/:id')

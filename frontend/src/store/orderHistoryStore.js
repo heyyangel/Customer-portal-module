@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ordersApi } from "../services/orders";
+import { reservationsApi } from "../services/reservations";
 
 const computeMetrics = (orders) => {
   const now = new Date();
@@ -41,6 +42,7 @@ export const useOrderHistoryStore = create((set, get) => ({
     ready: 0,
     dispatched: 0,
     completed: 0,
+    cancelled: 0,
     today: 0,
     thisMonth: 0,
   },
@@ -51,15 +53,27 @@ export const useOrderHistoryStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const orders = await ordersApi.getAll();
-      set({
+      set((state) => ({
         allOrders: orders,
         orders,
-        metrics: computeMetrics(orders),
+        // Cancelled comes from reservations, not orders — carry it through.
+        metrics: { ...computeMetrics(orders), cancelled: state.metrics.cancelled },
         loading: false,
-      });
+      }));
       get().applyFilters();
     } catch (err) {
       set({ error: err.message || "Failed to fetch orders", loading: false });
+    }
+  },
+
+  // Cancelled bookings never became orders: they either expired on the
+  // selection list (7-day window) or were removed by the customer.
+  fetchCancelledCount: async () => {
+    try {
+      const cancelled = await reservationsApi.getCancelledCount();
+      set((state) => ({ metrics: { ...state.metrics, cancelled } }));
+    } catch {
+      // Non-blocking: leave the existing count in place.
     }
   },
 

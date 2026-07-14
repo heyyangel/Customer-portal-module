@@ -6,6 +6,7 @@ import {
   CheckCircle,
   Package,
   Truck,
+  Ban,
 } from "lucide-react";
 
 export const MetricsCard = () => {
@@ -42,10 +43,16 @@ export const MetricsCard = () => {
       icon: <CheckCircle size={20} className="text-success-600" />,
       bg: "bg-success-50",
     },
+    {
+      label: "Cancelled",
+      value: metrics.cancelled,
+      icon: <Ban size={20} className="text-slate-500" />,
+      bg: "bg-slate-100",
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
       {items.map((item, idx) => (
         <Card key={idx} className="border-slate-200 shadow-sm overflow-hidden">
           <CardContent className="p-3 flex items-center gap-3">
