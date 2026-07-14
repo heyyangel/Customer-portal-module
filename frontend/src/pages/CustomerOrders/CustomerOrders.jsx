@@ -46,6 +46,9 @@ export const CustomerOrders = () => {
 
   // MOQ is enforced only for Non-MSIL customers; MSIL customers are exempt.
   const isMsil = user?.customerCategory === "MSIL";
+  // MSIL customers order by MSIL Code, so they need to see it. Admins always do,
+  // and the per-user showMsilCode flag can enable it for anyone else.
+  const showMsilCode = user?.role === "Admin" || isMsil || user?.showMsilCode === true;
   const productMoq = Number(selectedProduct?.moq) || 0;
   const moqApplies = !isMsil && productMoq > 1;
 
@@ -230,16 +233,17 @@ export const CustomerOrders = () => {
             </div>
 
             {/* PRODUCT DETAILS CARDS */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* MSIL CODE - Admin Only */}
-              {user?.role === 'Admin' && (
+            <div className={`grid ${showMsilCode ? "grid-cols-2" : "grid-cols-1"} gap-3`}>
+              {/* MSIL Code — shown to Admins, MSIL customers (who order by it),
+                  and anyone explicitly flagged with showMsilCode. */}
+              {showMsilCode && (
                 <div className="flex flex-col p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/60 shadow-sm transition-all hover:shadow-md">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Hash size={14} className="text-[#1a5b9e]" />
                     <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">MSIL Code</span>
                   </div>
-                  <span className="text-sm font-black text-slate-800">
-                    {selectedProduct?.msilCode || ""}
+                  <span className={`text-sm font-black ${selectedProduct?.msilCode ? "text-slate-800" : "text-slate-400"}`}>
+                    {selectedProduct ? (selectedProduct.msilCode || "—") : "---"}
                   </span>
                 </div>
               )}
