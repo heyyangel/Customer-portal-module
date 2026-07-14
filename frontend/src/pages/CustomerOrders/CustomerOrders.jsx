@@ -203,7 +203,9 @@ export const CustomerOrders = () => {
 
   return (
     <div className="w-full h-auto p-4 lg:p-4 bg-slate-50/50 font-sans">
-      <div className="grid grid-cols-1 lg:grid-cols-[38fr_62fr] gap-8 h-full">
+      {/* items-start: each card sizes to its own content, so growth in one
+          panel (e.g. the Selection List) never stretches the other. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[38fr_62fr] gap-8 items-start">
         {/* LEFT PANEL: Create Booking */}
         <div className="flex flex-col gap-6 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden">
           {/* Subtle top border accent */}
@@ -358,7 +360,7 @@ export const CustomerOrders = () => {
             <p className="text-xs text-slate-500 mt-1">Pending Reservations Timeline & Checkout</p>
           </div>
 
-          <div className="flex-1 flex flex-col justify-between">
+          <div className="flex flex-col">
             <div className="w-full">
               <OrderTable
                 items={cartItems}
