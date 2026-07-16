@@ -5,7 +5,7 @@ import { ConversionSummary } from "../../components/dashboard/ConversionSummary"
 import { ActivityFeed } from "../../components/dashboard/ActivityFeed";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
-import { PlusCircle, UploadCloud } from "lucide-react";
+import { PlusCircle, UploadCloud, Boxes } from "lucide-react";
 
 import { useUserStore } from "../../store/userStore";
 
@@ -22,6 +22,12 @@ export const Dashboard = () => {
           customerName={user?.company || user?.user || user?.email || "—"}
           actions={
             <div className="flex flex-wrap items-center gap-2">
+              {isAdmin && (
+                <Button size="sm" variant="outline" onClick={() => navigate('/inventory')}>
+                  <Boxes size={16} className="mr-2" />
+                  Inventory
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={() => navigate('/orders/bulk-upload')}>
                 <UploadCloud size={16} className="mr-2" />
                 Bulk Upload
