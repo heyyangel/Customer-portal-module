@@ -5,7 +5,7 @@ const reservationSchema = new mongoose.Schema({
   customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   skuCode: { type: String, required: true },
-  msilCode: { type: String, required: true },
+  msilCode: { type: String, default: null },
   quantity: { type: Number, required: true },
   reservationDate: { type: Date, default: Date.now },
   expiryDate: { type: Date, required: true },

@@ -91,6 +91,10 @@ export const CustomerOrders = () => {
       toast.error(`Quantity must be at least the MOQ (${productMoq})`, { icon: "❌" });
       return;
     }
+    if (moqApplies && data.quantity % productMoq !== 0) {
+      toast.error(`Quantity must be a multiple of the MOQ (${productMoq})`, { icon: "❌" });
+      return;
+    }
 
     // Over-booking is allowed: any quantity may be booked even if it exceeds
     // available stock. Unfulfillable quantity becomes a Pending Indent at confirmation.
@@ -215,7 +219,6 @@ export const CustomerOrders = () => {
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               Create Booking
             </h1>
-            <p className="text-xs text-slate-500 mt-1">ERP Temporary Reservation System</p>
           </div>
 
           <form onSubmit={handleSubmit(handleAddToCart)} className="flex flex-col gap-6">
@@ -227,7 +230,7 @@ export const CustomerOrders = () => {
               </label>
               <div className="rounded-xl shadow-sm transition-colors focus-within:ring-2 focus-within:ring-[#1a5b9e]/20">
                 <ProductSearchDropdown
-                  placeholder="Search by MSIL Code or SKU Code..."
+                  placeholder={showMsilCode ? "Search by MSIL Code or SKU Code..." : "Search by SKU Code..."}
                   value={productSearchVal}
                   onChange={handleProductSelect}
                 />
@@ -320,10 +323,20 @@ export const CustomerOrders = () => {
               {errors.quantity && <span className="text-xs text-red-500 mt-1 font-semibold">{errors.quantity.message}</span>}
               {/* MOQ reminder for Non-MSIL: quantity must be at least the MOQ. */}
               {moqApplies && selectedProduct && (
-                Number.isInteger(watchQuantity) && watchQuantity >= 1 && watchQuantity < productMoq ? (
-                  <span className="text-xs text-red-500 mt-1 font-semibold">
-                    Enter {productMoq} or more units (MOQ {productMoq}).
-                  </span>
+                Number.isInteger(watchQuantity) && watchQuantity >= 1 ? (
+                  watchQuantity < productMoq ? (
+                    <span className="text-xs text-red-500 mt-1 font-semibold">
+                      Enter {productMoq} or more units (MOQ {productMoq}).
+                    </span>
+                  ) : watchQuantity % productMoq !== 0 ? (
+                    <span className="text-xs text-red-500 mt-1 font-semibold">
+                      Enter a quantity that is a multiple of {productMoq}.
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 mt-1 font-medium">
+                      Multiple of {productMoq} units required.
+                    </span>
+                  )
                 ) : (
                   <span className="text-[11px] text-slate-400 mt-1 font-medium">
                     Minimum {productMoq} units — enter {productMoq} or more.
@@ -340,7 +353,7 @@ export const CustomerOrders = () => {
             {/* ADD TO LIST BUTTON */}
             <button
               type="submit"
-              disabled={loading || !selectedProduct || !Number.isInteger(watchQuantity) || watchQuantity < 1 || (moqApplies && watchQuantity < productMoq)}
+              disabled={loading || !selectedProduct || !Number.isInteger(watchQuantity) || watchQuantity < 1 || (moqApplies && (watchQuantity < productMoq || watchQuantity % productMoq !== 0))}
               className="w-full py-3.5 mt-2 bg-gradient-to-r from-[#1a5b9e] to-[#15467a] hover:from-[#15467a] hover:to-[#0f345a] text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed tracking-wider text-sm active:scale-[0.98]"
             >
               <span className="text-lg font-light leading-none mb-0.5">+</span> ADD TO LIST
@@ -357,7 +370,6 @@ export const CustomerOrders = () => {
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               Selection List
             </h1>
-            <p className="text-xs text-slate-500 mt-1">Pending Reservations Timeline & Checkout</p>
           </div>
 
           <div className="flex flex-col">

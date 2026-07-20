@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Order from '../../models/Order.js';
+import Reservation from '../../models/Reservation.js';
 import { ProductKoken, ProductBIX, ProductIMADA } from '../../models/Product.js';
 import AuditLog from '../../models/AuditLog.js';
 import { nextSequence } from '../../models/Counter.js';
@@ -144,7 +145,7 @@ export const createOrder = async (req, res, next) => {
           bookedQty: requestedQty,
           confirmedQty,
           pendingQty,
-          poNumber: poNumber || `BOOK-${orderNumber}`,
+          poNumber: poNumber || "-",
           location: deliveryLocation || null,
           remarks: pendingQty > 0
             ? `Partially confirmed (${confirmedQty}/${requestedQty}). ${pendingQty} pending. ${remarks || ''}`.trim()
@@ -240,6 +241,26 @@ export const updateOrderStatus = async (req, res, next) => {
     }
 
     res.status(200).json({ success: true, data: order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateOrderPO = async (req, res, next) => {
+  try {
+    const { poNumber } = req.body;
+    const orderNumber = req.params.orderId; 
+    
+    if (!orderNumber || !poNumber) {
+      return res.status(400).json({ success: false, message: 'orderNumber and poNumber required' });
+    }
+
+    await Order.updateMany({ orderId: orderNumber }, { poNumber });
+
+    const indentNumber = orderNumber.replace(/^SO-|^BO-/, 'PI-');
+    await Reservation.updateMany({ indentNumber }, { poNumber });
+
+    res.status(200).json({ success: true, poNumber });
   } catch (error) {
     next(error);
   }

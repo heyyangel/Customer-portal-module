@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { useProductStore } from "../../store/productStore";
+import { useUserStore } from "../../store/userStore";
 
 export const ProductSearchDropdown = ({
   placeholder = "Search Product Code...",
@@ -10,6 +11,9 @@ export const ProductSearchDropdown = ({
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
+
+  const { user } = useUserStore();
+  const showMsilCode = user?.role === "Admin" || user?.customerCategory === "MSIL" || user?.showMsilCode === true;
 
   const searchResults = useProductStore((state) => state.searchResults);
   const searching = useProductStore((state) => state.searching);
@@ -112,7 +116,7 @@ export const ProductSearchDropdown = ({
                     <span className="text-sm font-bold text-slate-800 truncate tracking-wide">
                       {product.code}
                     </span>
-                    {product.msilCode && (
+                    {showMsilCode && product.msilCode && (
                       <span className="text-xs text-slate-400 font-medium">
                         {product.msilCode}
                       </span>

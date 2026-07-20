@@ -29,7 +29,7 @@ export const BulkUploadCard = ({ file, onUpload, onRemove, isLoading }) => {
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col gap-4 shadow-sm select-none">
       <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2">
-        Upload Order Sheet
+        Upload Booking Sheet
       </h3>
 
       {!file ? (

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw, PackageX } from "lucide-react";
+import { RefreshCw, PackageX, Download } from "lucide-react";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
 import { PageHeader } from "../../components/common/PageHeader";
-import { BackordersTable } from "../../components/backorders/BackordersTable";
+import { BackordersTable, groupByIndent } from "../../components/backorders/BackordersTable";
 import { Pagination } from "../../components/ui/Pagination";
 
 const PAGE_SIZE = 10;
@@ -15,6 +15,78 @@ export const Backorders = () => {
   const isAdmin = user?.role === "Admin";
   const [page, setPage] = useState(1);
   const [restoringId, setRestoringId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const allGroups = pendingItems.length ? groupByIndent(pendingItems) : [];
+
+  const toggleSelectId = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    // Only toggling selection for the current page
+    const currentPageGroups = groupByIndent(
+      pendingItems.slice((page - 1) * PAGE_SIZE, Math.min(page, Math.ceil(pendingItems.length / PAGE_SIZE) || 1) * PAGE_SIZE)
+    );
+    const currentPageIds = currentPageGroups.map(g => g.indentNumber || g.primary._id);
+    
+    const allSelectedOnPage = currentPageIds.every(id => selectedIds.includes(id));
+    
+    if (allSelectedOnPage) {
+      setSelectedIds(prev => prev.filter(id => !currentPageIds.includes(id)));
+    } else {
+      setSelectedIds(prev => [...new Set([...prev, ...currentPageIds])]);
+    }
+  };
+
+  const exportToExcel = (groupsToExport) => {
+    import("../../utils/exportUtils").then(({ exportToExcel }) => {
+      const cols = [
+        { key: "indentNo", label: "Indent No" },
+        { key: "sku", label: "SKU Code" },
+        ...(isAdmin ? [{ key: "customer", label: "Customer" }] : []),
+        { key: "category", label: "Category" },
+        { key: "pendingQty", label: "Pending Qty" },
+        { key: "stock", label: "Current Stock" },
+        { key: "status", label: "Status" },
+      ];
+
+      const rows = [];
+      groupsToExport.forEach(group => {
+        group.lines.forEach(line => {
+          rows.push({
+            indentNo: group.indentNumber || "—",
+            sku: line.product?.code || "—",
+            customer: line.customer?.name || "—",
+            category: line.product?.category || "—",
+            pendingQty: line.pendingQuantity || 0,
+            stock: line.product?.availableStock || 0,
+            status: line.status || "—",
+          });
+        });
+      });
+
+      exportToExcel(rows, cols, "Pending_Indents");
+    });
+  };
+
+  const handleBulkExport = () => {
+    if (allGroups.length === 0) {
+      toast.error("No pending indents to export");
+      return;
+    }
+    let toExport = allGroups;
+    if (selectedIds.length > 0) {
+      toExport = allGroups.filter(g => selectedIds.includes(g.indentNumber || g.primary._id));
+    }
+    exportToExcel(toExport);
+  };
+
+  const handleExportRow = (group) => {
+    exportToExcel([group]);
+  };
 
   useEffect(() => {
     fetchPendingReservations();
@@ -53,14 +125,23 @@ export const Backorders = () => {
       <PageHeader
         title="Pending Indents"
         actions={
-          <button
-            onClick={() => fetchPendingReservations()}
-            disabled={loading}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-all disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleBulkExport}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 border border-primary-600 rounded-lg px-3 py-1.5 transition-all"
+            >
+              <Download size={14} />
+              Export{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+            </button>
+            <button
+              onClick={() => fetchPendingReservations()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-all disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
         }
       />
       <p className="text-slate-500 text-sm font-medium -mt-2">
@@ -100,8 +181,10 @@ export const Backorders = () => {
         <BackordersTable
           items={pageItems}
           showCustomer={isAdmin}
-          onRestore={isAdmin ? handleRestore : null}
-          restoringId={restoringId}
+          selectedIds={selectedIds}
+          toggleSelectId={toggleSelectId}
+          toggleSelectAll={toggleSelectAll}
+          onExportRow={handleExportRow}
         />
 
         {pendingItems.length > PAGE_SIZE && (

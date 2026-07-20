@@ -55,11 +55,6 @@ export const Inventory = () => {
   const currentPage = Math.min(page, totalPages);
   const pageProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // Inventory exposes product prices and total stock value — admin only.
-  if (user && user.role !== 'Admin') {
-    return <Navigate to="/" replace />;
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">

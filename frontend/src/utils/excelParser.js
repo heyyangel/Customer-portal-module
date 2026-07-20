@@ -86,35 +86,19 @@ export const parseExcelFile = async (file) => {
   });
 };
 
-// Two bulk-import templates, keyed by customer category.
-// MSIL customers order by MSIL Code; Non-MSIL customers order by SKU Code.
+// A single bulk upload template that accepts either SKU Code or MSIL Code.
 export const TEMPLATE_CONFIG = {
-  MSIL: {
-    label: "MSIL Bulk Import Template",
-    fileName: "MSIL_Bulk_Order_Template.xlsx",
-    headers: ["MSIL Code", "Quantity"],
-    sample: [
-      ["MSIL-XYZ-1", "10"],
-      ["MSIL-ABC-2", "5"],
-    ],
-  },
-  "Non-MSIL": {
-    label: "Non-MSIL Bulk Import Template",
-    fileName: "NonMSIL_Bulk_Order_Template.xlsx",
-    headers: ["SKU Code", "Quantity"],
-    sample: [
-      ["13405M-8", "10"],
-      ["22110K-2", "5"],
-    ],
-  },
+  label: "Bulk Upload Template",
+  fileName: "Bulk_Order_Template.xlsx",
+  headers: ["SKU Code", "MSIL Code", "Quantity"],
+  sample: [
+    ["13405M-8", "", "10"],
+    ["", "MSIL-XYZ-1", "5"],
+  ],
 };
 
-// Resolve a category (defaults to Non-MSIL for anything unrecognised).
-export const resolveTemplate = (category) =>
-  TEMPLATE_CONFIG[category] || TEMPLATE_CONFIG["Non-MSIL"];
-
-export const downloadTemplate = (category = "Non-MSIL") => {
-  const cfg = resolveTemplate(category);
+export const downloadTemplate = () => {
+  const cfg = TEMPLATE_CONFIG;
   const templateData = [cfg.headers, ...cfg.sample];
 
   const ws = XLSX.utils.aoa_to_sheet(templateData);

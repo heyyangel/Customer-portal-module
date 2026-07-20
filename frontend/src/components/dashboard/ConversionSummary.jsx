@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, ArrowRight } from 'lucide-react';
 import { api } from '../../services/api';
 
@@ -14,6 +15,7 @@ const COLORS = {
 };
 
 export const ConversionSummary = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -42,10 +44,10 @@ export const ConversionSummary = () => {
   const reservedPct = pct(reserved);
 
   const chips = [
-    { key: 'booked', label: 'Booked', value: booked, color: COLORS.booked, hint: 'total demand' },
-    { key: 'confirmed', label: 'Confirmed', value: confirmed, color: COLORS.confirmed, hint: 'fulfilled' },
-    { key: 'pending', label: 'Pending Indent', value: pending, color: COLORS.pending, hint: 'awaiting stock' },
-    { key: 'reserved', label: 'In List', value: reserved, color: COLORS.reserved, hint: 'awaiting confirm' },
+    { key: 'booked', label: 'Booked', value: booked, color: COLORS.booked, hint: 'total demand', path: '/orders/history' },
+    { key: 'confirmed', label: 'Confirmed', value: confirmed, color: COLORS.confirmed, hint: 'fulfilled', path: '/orders/history' },
+    { key: 'pending', label: 'Pending Indent', value: pending, color: COLORS.pending, hint: 'awaiting stock', path: '/orders/backorders' },
+    { key: 'reserved', label: 'In List', value: reserved, color: COLORS.reserved, hint: 'awaiting confirm', path: '/orders/new' },
   ];
 
   return (
@@ -53,7 +55,6 @@ export const ConversionSummary = () => {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="font-bold text-slate-800">Booking Conversion</h3>
-          <p className="text-xs text-slate-400 mt-0.5">How much booked demand has been fulfilled</p>
         </div>
       </div>
 
@@ -117,14 +118,19 @@ export const ConversionSummary = () => {
             {/* Legend chips (identity never color-alone) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
               {chips.map((c) => (
-                <div key={c.key} className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5">
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => navigate(c.path)}
+                  className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-2.5 text-left hover:bg-slate-100 transition-colors"
+                >
                   <div className="flex items-center gap-1.5">
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">{c.label}</span>
                   </div>
                   <p className="text-xl font-bold text-slate-900 mt-1 tabular-nums">{c.value.toLocaleString()}</p>
                   <p className="text-[10px] text-slate-400 font-medium">{c.hint}</p>
-                </div>
+                </button>
               ))}
             </div>
           </div>

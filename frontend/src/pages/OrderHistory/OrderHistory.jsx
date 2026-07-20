@@ -27,7 +27,7 @@ export const OrderHistory = () => {
     <div className="flex flex-col gap-6 relative">
       <PageHeader title="Booking History" />
       <p className="text-slate-600 -mt-2 text-sm">
-        Track, search and manage bookings across all ERP modules.
+        Track, search and manage bookings in one place.
       </p>
 
       <MetricsCard />

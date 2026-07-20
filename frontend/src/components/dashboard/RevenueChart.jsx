@@ -87,7 +87,6 @@ export const RevenueChart = () => {
         <div className="flex items-center justify-between mb-2">
           <div>
             <h3 className="font-bold text-slate-800">Demand vs Fulfilment</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Bookings vs confirmed — the gap is pending</p>
           </div>
           <div className="flex items-center gap-2">
             <button

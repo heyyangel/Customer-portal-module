@@ -419,8 +419,7 @@ const runConfirmBooking = async (req, session) => {
   // Time-based PO number: PO-YYMMDD-<4 digit seq> (customer-supplied wins).
   const now = new Date();
   const stamp = `${String(year).slice(2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  const poSeq = await nextSequence(`po-${year}`, session);
-  const poNumber = req.body.poNumber || `PO-${stamp}-${String(poSeq).padStart(4, '0')}`;
+  const poNumber = req.body.poNumber || "-";
   const ordersToCreate = [];
   const summary = [];
   const dateNow = new Date();

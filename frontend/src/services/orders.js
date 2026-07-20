@@ -127,5 +127,10 @@ export const ordersApi = {
     await Promise.all(
       targets.map((id) => api.put(`/orders/${id}/status`, { status, remarks })),
     );
+  },
+
+  updatePO: async (orderNumber, poNumber) => {
+    const response = await api.put(`/orders/${orderNumber}/po`, { poNumber });
+    return response.data;
   }
 };

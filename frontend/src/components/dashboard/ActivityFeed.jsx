@@ -50,7 +50,6 @@ export const ActivityFeed = () => {
         <div className="flex items-center justify-between mb-5 border-b border-slate-100 pb-4 shrink-0">
           <div>
             <h3 className="font-bold text-slate-800">Recent Bookings</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Updated in real time</p>
           </div>
         </div>
 

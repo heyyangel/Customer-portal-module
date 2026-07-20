@@ -33,9 +33,9 @@ export const Sidebar = () => {
     { name: "Bulk Upload", path: "/orders/bulk-upload", icon: UploadCloud },
     { name: "Booking History", path: "/orders/history", icon: History },
     { name: "Raise Indent", path: "/orders/backorders", icon: PackageX },
+    { name: "Inventory", path: "/inventory", icon: Boxes },
     ...(user?.role === 'Admin' ? [
       { name: "User Management", path: "/admin/users", icon: Users },
-      { name: "Inventory", path: "/inventory", icon: Boxes },
       // Reports hidden from the menu for now.
       // { name: "Reports", path: "/reports", icon: BarChart3 },
     ] : []),
@@ -62,13 +62,6 @@ export const Sidebar = () => {
             className="object-contain w-full h-full"
           />
         </div>
-        {sidebarOpen && (
-          <div className="mt-3 text-center">
-            <span className="text-xs font-bold text-primary-100 uppercase tracking-widest bg-white/10 px-2.5 py-1 rounded-md ring-1 ring-white/10">
-              Customer Portal
-            </span>
-          </div>
-        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/30 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.1)_transparent]">

@@ -13,7 +13,6 @@ import {
   parseExcelFile,
   downloadTemplate,
   downloadErrorReport,
-  resolveTemplate,
 } from "../../utils/excelParser";
 import { api } from "../../services/api";
 import { reservationsApi } from "../../services/reservations";
@@ -25,10 +24,6 @@ export const BulkUpload = () => {
   const { file, rows, summary, setFile, setRows, updateRow, removeRow, reset: resetStore } =
     useBulkImportStore();
   const { confirmBooking, fetchReservations } = useCartStore();
-  const { user } = useUserStore();
-  const isAdmin = user?.role === "Admin";
-  const category = user?.customerCategory || "Non-MSIL";
-  const template = resolveTemplate(category);
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -179,7 +174,7 @@ export const BulkUpload = () => {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
-        title="Bulk Booking Import"
+        title="Bulk Booking Upload"
         actions={
           <ERPButton variant="outline" size="sm" onClick={() => reset()}>
             Reset Session
@@ -188,7 +183,7 @@ export const BulkUpload = () => {
       />
 
       <p className="text-slate-600">
-        Import customer bookings using an Excel template.
+        Upload bookings using an Excel template.
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-[30fr_70fr] gap-8 items-start">
@@ -208,35 +203,13 @@ export const BulkUpload = () => {
               <li>Quantities exceeding available stock will be flagged.</li>
             </ul>
 
-            {isAdmin ? (
-              <div className="mt-4 flex flex-col gap-2">
-                <p className="text-xs font-semibold text-slate-500">Download an import template:</p>
-                <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate("MSIL")}>
-                  <Download size={16} className="mr-2" />
-                  MSIL Template
-                </ERPButton>
-                <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate("Non-MSIL")}>
-                  <Download size={16} className="mr-2" />
-                  Non-MSIL Template
-                </ERPButton>
-              </div>
-            ) : (
-              <>
-                <p className="mt-4 text-xs font-medium text-slate-500">
-                  Your account category is{" "}
-                  <span className="font-bold text-primary-700">{category}</span> — use the{" "}
-                  <span className="font-semibold">{template.label}</span>.
-                </p>
-                <ERPButton
-                  variant="outline"
-                  className="w-full mt-2"
-                  onClick={() => downloadTemplate(category)}
-                >
-                  <Download size={16} className="mr-2" />
-                  Download {template.label}
-                </ERPButton>
-              </>
-            )}
+            <div className="mt-4 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500">Download a bulk upload template:</p>
+              <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate()}>
+                <Download size={16} className="mr-2" />
+                Download Bulk Upload Template
+              </ERPButton>
+            </div>
           </div>
         </div>
 

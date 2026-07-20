@@ -79,7 +79,7 @@ export const OrderToolbar = () => {
           />
           <input
             type="text"
-            placeholder="Search Booking No, PO No, Customer..."
+            placeholder={isAdmin ? "Search Booking No, PO No, Customer..." : "Search Booking No, PO No..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"

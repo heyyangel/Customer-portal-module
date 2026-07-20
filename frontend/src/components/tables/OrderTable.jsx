@@ -29,6 +29,11 @@ const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
       setDraft(String(item.orderQuantity));
       return;
     }
+    if (applyMoq && val % rowMoq !== 0) {
+      toast.error(`Quantity must be a multiple of the MOQ (${rowMoq})`);
+      setDraft(String(item.orderQuantity));
+      return;
+    }
     if (val !== item.orderQuantity) onUpdateQty(item.product.code, val);
   };
 

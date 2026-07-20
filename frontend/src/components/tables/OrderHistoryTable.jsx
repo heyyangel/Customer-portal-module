@@ -1,7 +1,8 @@
-import { ChevronUp, ChevronDown, Eye, FileDown, PackageX } from "lucide-react";
+import { ChevronUp, ChevronDown, Eye, FileDown, PackageX, FileSpreadsheet } from "lucide-react";
 import toast from "react-hot-toast";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useCartStore } from "../../store/cartStore";
+import { useUserStore } from "../../store/userStore";
 
 export const OrderHistoryTable = () => {
   const {
@@ -23,6 +24,8 @@ export const OrderHistoryTable = () => {
   const indentPOs = new Set(
     pendingItems.map((p) => p.poNumber).filter(Boolean),
   );
+
+  const isAdmin = useUserStore((s) => s.user?.role === "Admin");
 
   const totalPages = Math.ceil(orders.length / limit);
   const currentOrders = orders.slice((page - 1) * limit, page * limit);
@@ -57,6 +60,29 @@ export const OrderHistoryTable = () => {
     });
   };
 
+  const handleRowExcel = (order) => {
+    import("../../utils/exportUtils").then(({ exportToExcel }) => {
+      const cols = [
+        { key: "bookingId", label: "Booking ID" },
+        { key: "sku", label: "SKU Code" },
+        { key: "productName", label: "Product Name" },
+        { key: "quantity", label: "Quantity" },
+      ];
+      const items = (order.items || []).map((it) => ({
+        bookingId: order.orderNumber,
+        sku: it.product?.code || "-",
+        productName: it.product?.name || "-",
+        quantity: it.orderQuantity ?? it.quantity ?? 0,
+      }));
+      const ok = exportToExcel(
+        items,
+        cols,
+        `Booking_${order.orderNumber}`,
+      );
+      if (!ok) toast.error("Excel download failed");
+    });
+  };
+
   const renderSortIcon = (field) => {
     if (sortBy !== field) return null;
     return sortOrder === "asc" ? (
@@ -82,8 +108,8 @@ export const OrderHistoryTable = () => {
                 />
               </th>
               <th className="px-5 py-3 border-b border-slate-200">Booking ID</th>
+              {isAdmin && <th className="px-5 py-3 border-b border-slate-200">Customer</th>}
               <th className="px-5 py-3 border-b border-slate-200">PO Number</th>
-              <th className="px-5 py-3 border-b border-slate-200">Customer</th>
               <th
                 className="px-5 py-3 border-b border-slate-200 cursor-pointer hover:bg-slate-100"
                 onClick={() => handleSort("date")}
@@ -103,13 +129,18 @@ export const OrderHistoryTable = () => {
               currentOrders.map((order) => (
                 <tr
                   key={order.id}
-                  className="hover:bg-slate-50 transition-colors"
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedOrder(order)}
                 >
                   <td className="px-5 py-4 text-center">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(order.orderNumber)}
-                      onChange={() => toggleSelectId(order.orderNumber)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelectId(order.orderNumber);
+                      }}
                       className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                     />
                   </td>
@@ -126,10 +157,14 @@ export const OrderHistoryTable = () => {
                       )}
                     </div>
                   </td>
+                  {isAdmin && (
+                    <td className="px-5 py-4 font-bold text-slate-700 truncate max-w-[200px]" title={order.customer}>
+                      {order.customer}
+                    </td>
+                  )}
                   <td className="px-5 py-4 font-medium text-slate-600">
-                    {order.poNumber}
+                    {order.poNumber || "-"}
                   </td>
-                  <td className="px-5 py-4 text-slate-700">{order.customer}</td>
                   <td className="px-5 py-4 text-slate-600">
                     {new Date(order.date).toLocaleDateString()}
                   </td>
@@ -138,18 +173,34 @@ export const OrderHistoryTable = () => {
                   </td>
                   <td className="px-5 py-4 text-center">
                     <button
-                      onClick={() => setSelectedOrder(order)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrder(order);
+                      }}
                       className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus:outline-none"
                       title="View Details"
                     >
                       <Eye size={18} />
                     </button>
                     <button
-                      onClick={() => handleRowPDF(order)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowPDF(order);
+                      }}
                       className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus:outline-none"
                       title="Download PDF"
                     >
                       <FileDown size={18} />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRowExcel(order);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus:outline-none"
+                      title="Download Excel"
+                    >
+                      <FileSpreadsheet size={18} />
                     </button>
                   </td>
                 </tr>
@@ -157,7 +208,7 @@ export const OrderHistoryTable = () => {
             ) : (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={isAdmin ? 7 : 6}
                   className="px-5 py-10 text-center text-slate-400"
                 >
                   No bookings found matching your criteria.

@@ -32,13 +32,29 @@ import { PackageX } from "lucide-react";
 import toast from "react-hot-toast";
 
 export const OrderDrawer = () => {
-  const { selectedOrder, setSelectedOrder, updateOrderStatus } = useOrderHistoryStore();
+  const { selectedOrder, setSelectedOrder, updateOrderStatus, updateOrderPO } = useOrderHistoryStore();
   const { user } = useUserStore();
   const { pendingItems, fetchPendingReservations } = useCartStore();
   const canViewPrice = useCanViewPrice();
   const isAdmin = user?.role === "Admin";
 
   const [busy, setBusy] = useState(false);
+  const [isEditingPO, setIsEditingPO] = useState(false);
+  const [newPO, setNewPO] = useState("");
+
+  const handleSavePO = async () => {
+    if (!newPO.trim()) return;
+    setBusy(true);
+    const res = await updateOrderPO(selectedOrder, newPO.trim());
+    setBusy(false);
+    if (res.success) {
+      toast.success("PO Number updated successfully");
+      setIsEditingPO(false);
+      fetchPendingReservations();
+    } else {
+      toast.error(res.error || "Failed to update PO Number");
+    }
+  };
 
   // Load pending indents so the drawer can show the ones tied to this booking's PO.
   useEffect(() => {
@@ -47,9 +63,9 @@ export const OrderDrawer = () => {
 
   if (!selectedOrder) return null;
 
-  // Pending indents produced by this booking are linked by its PO number.
+  const targetIndent = selectedOrder.orderNumber.replace(/^SO-|^BO-/, 'PI-');
   const bookingIndents = pendingItems.filter(
-    (p) => p.poNumber && p.poNumber === selectedOrder.poNumber,
+    (p) => p.indentNumber === targetIndent,
   );
 
   const applyStatus = async (newStatus) => {
@@ -161,31 +177,61 @@ export const OrderDrawer = () => {
           <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8">
             {/* Top Info Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
-                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                  <User size={16} className="text-blue-600" />
+              {isAdmin && (
+                <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                    <User size={16} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">
+                      Customer
+                    </p>
+                    <p className="text-sm font-bold text-slate-800 line-clamp-2">
+                      {selectedOrder.customer}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase">
-                    Customer
-                  </p>
-                  <p className="text-sm font-bold text-slate-800 line-clamp-2">
-                    {selectedOrder.customer}
-                  </p>
-                </div>
-              </div>
+              )}
 
               <div className="bg-white border border-slate-200 p-4 rounded-xl flex items-start gap-3 shadow-sm">
                 <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
                   <Hash size={16} className="text-indigo-600" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">
                     PO Number
                   </p>
-                  <p className="text-sm font-bold text-slate-800 line-clamp-2">
-                    {selectedOrder.poNumber}
-                  </p>
+                  {isEditingPO ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={newPO}
+                        onChange={(e) => setNewPO(e.target.value)}
+                        className="w-full text-sm border border-slate-300 rounded px-2 py-1 outline-none focus:border-indigo-500 font-semibold text-slate-800"
+                        placeholder="Enter PO No..."
+                        autoFocus
+                      />
+                      <button onClick={handleSavePO} disabled={busy} className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-2 py-1.5 rounded">Save</button>
+                      <button onClick={() => setIsEditingPO(false)} disabled={busy} className="text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-2 py-1.5 rounded">Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-sm font-bold text-slate-800 line-clamp-2">
+                        {selectedOrder.poNumber || "-"}
+                      </p>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setNewPO(selectedOrder.poNumber && selectedOrder.poNumber !== "-" ? selectedOrder.poNumber : "");
+                            setIsEditingPO(true);
+                          }}
+                          className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hover:bg-indigo-100 whitespace-nowrap"
+                        >
+                          {(selectedOrder.poNumber && selectedOrder.poNumber !== "-") ? "Edit" : "Raise PO"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/Card';
 import { Package, Clock, CheckCircle, AlertTriangle, Users, Truck, PackageX, Loader2 } from 'lucide-react';
@@ -6,6 +7,7 @@ import { api } from '../../services/api';
 import { useUserStore } from '../../store/userStore';
 
 export const KPIStats = () => {
+  const navigate = useNavigate();
   const { user } = useUserStore();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,44 +40,51 @@ export const KPIStats = () => {
       id: 1, title: 'Total Products',
       value: stats?.totalProducts?.toLocaleString() ?? '—',
       sub: 'Across all brands',
-      icon: Package, color: 'primary'
+      icon: Package, color: 'primary',
+      path: '/inventory',
     },
     {
       id: 2, title: 'In Process',
       value: stats?.bookedOrders?.toLocaleString() ?? '—',
       sub: `${stats?.totalOrders ?? 0} total bookings`,
-      icon: Clock, color: 'warning'
+      icon: Clock, color: 'warning',
+      path: '/orders/history',
     },
     {
       id: 4, title: 'Delivered',
       value: stats?.deliveredOrders?.toLocaleString() ?? '—',
       sub: 'Completed deliveries',
-      icon: CheckCircle, color: 'success'
+      icon: CheckCircle, color: 'success',
+      path: '/orders/history',
     },
     user?.role === 'Admin'
       ? {
           id: 5, title: 'Low Stock SKUs',
           value: stats?.lowStockAlerts?.toLocaleString() ?? '—',
           sub: 'Available for sale ≤ 0',
-          icon: AlertTriangle, color: 'error'
+          icon: AlertTriangle, color: 'error',
+          path: '/inventory',
         }
       : {
           id: 5, title: 'In Transit',
           value: stats?.dispatchedOrders?.toLocaleString() ?? '—',
           sub: 'Dispatched, on the way',
-          icon: Truck, color: 'indigo'
+          icon: Truck, color: 'indigo',
+          path: '/orders/history',
         },
     {
       id: 7, title: 'Raise Indent',
       value: stats?.pendingBackorders?.toLocaleString() ?? '—',
       sub: `${stats?.pendingBackorderQty ?? 0} units awaiting stock`,
-      icon: PackageX, color: 'amber'
+      icon: PackageX, color: 'amber',
+      path: '/orders/backorders',
     },
     ...(user?.role === 'Admin' ? [{
       id: 6, title: 'Active Users',
       value: stats?.activeUsers?.toLocaleString() ?? '—',
       sub: 'Registered customers',
-      icon: Users, color: 'emerald'
+      icon: Users, color: 'emerald',
+      path: '/admin/users',
     }] : []),
   ];
 
@@ -108,7 +117,11 @@ export const KPIStats = () => {
             transition={{ delay: idx * 0.07, type: "spring", stiffness: 300, damping: 24 }}
             className="h-full"
           >
-            <Card className={`relative h-full overflow-hidden group hover:shadow-xl ${colors.glow} hover:-translate-y-1 transition-all duration-300 border border-slate-200 ${colors.hoverBorder} bg-white`}>
+            <button
+              type="button"
+              onClick={() => navigate(stat.path)}
+              className={`relative h-full w-full text-left group hover:shadow-xl ${colors.glow} hover:-translate-y-1 transition-all duration-300 border border-slate-200 ${colors.hoverBorder} bg-white rounded-2xl`}
+            >
               {/* Background Glow */}
               <div className={`absolute top-0 right-0 w-32 h-32 bg-linear-to-bl from-white to-transparent opacity-50 rounded-bl-full z-0`} />
               
@@ -129,7 +142,7 @@ export const KPIStats = () => {
                   <p className="kpi-tile-sub text-[11px] font-medium text-slate-400 mt-1 line-clamp-1 group-hover:text-slate-500 transition-colors">{stat.sub}</p>
                 </div>
               </CardContent>
-            </Card>
+            </button>
           </motion.div>
         );
       })}

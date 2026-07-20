@@ -188,6 +188,18 @@ export const useOrderHistoryStore = create((set, get) => ({
     }
   },
 
+  updateOrderPO: async (booking, poNumber) => {
+    try {
+      await ordersApi.updatePO(booking.orderNumber, poNumber);
+      await get().fetchOrders();
+      const updated = get().allOrders.find((o) => o.orderNumber === booking.orderNumber);
+      if (updated) set({ selectedOrder: updated });
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || err.message };
+    }
+  },
+
   refresh: async () => {
     set({
       filters: { status: "all", customer: "all", dateOn: "", dateFrom: "", dateTo: "" },

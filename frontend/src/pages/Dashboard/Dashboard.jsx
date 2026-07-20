@@ -18,16 +18,14 @@ export const Dashboard = () => {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <PageHeader
-          title={isAdmin ? "Admin Dashboard" : "Customer Dashboard"}
-          customerName={user?.company || user?.user || user?.email || "—"}
+          title={isAdmin ? "Admin Dashboard" : "Dashboard"}
+          hideMeta
           actions={
             <div className="flex flex-wrap items-center gap-2">
-              {isAdmin && (
-                <Button size="sm" variant="outline" onClick={() => navigate('/inventory')}>
-                  <Boxes size={16} className="mr-2" />
-                  Inventory
-                </Button>
-              )}
+              <Button size="sm" variant="outline" onClick={() => navigate('/inventory')}>
+                <Boxes size={16} className="mr-2" />
+                Inventory
+              </Button>
               <Button size="sm" variant="outline" onClick={() => navigate('/orders/bulk-upload')}>
                 <UploadCloud size={16} className="mr-2" />
                 Bulk Upload

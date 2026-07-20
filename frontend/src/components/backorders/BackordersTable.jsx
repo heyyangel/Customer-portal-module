@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { PackageX, ArrowRightCircle, Loader2, Eye } from "lucide-react";
+import { PackageX, ArrowRightCircle, Loader2, Eye, FileSpreadsheet } from "lucide-react";
 import { Modal } from "../ui/Modal";
 
 // Groups flat pending-indent rows (one per SKU) that came from the same
 // booking confirmation (shared indentNumber) into a single entry, so multiple
 // items confirmed together show as one row instead of one row per SKU.
-const groupByIndent = (items) => {
+export const groupByIndent = (items) => {
   const byIndent = new Map();
   const ungrouped = [];
 
@@ -46,6 +46,10 @@ export const BackordersTable = ({
   compact = false,
   onRestore = null,
   restoringId = null,
+  selectedIds = [],
+  toggleSelectId,
+  toggleSelectAll,
+  onExportRow,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
 
@@ -70,6 +74,14 @@ export const BackordersTable = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200/80">
+              <th className={`${pad} px-4 w-[4%]`}>
+                <input
+                  type="checkbox"
+                  checked={groups.length > 0 && selectedIds.length === groups.length}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                />
+              </th>
               <th className={`${pad} pr-4`}>Indent No</th>
               <th className={`${pad} pr-4`}>SKU Code</th>
               {showCustomer && <th className={`${pad} pr-4`}>Customer</th>}
@@ -90,6 +102,18 @@ export const BackordersTable = ({
 
               return (
                 <tr key={key} className="text-slate-700">
+                  <td className={`${pad} px-4`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(key)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelectId(key);
+                      }}
+                      className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    />
+                  </td>
                   <td className={`${pad} pr-4 font-bold text-amber-700`}>
                     {indentNumber || "—"}
                   </td>
@@ -116,13 +140,27 @@ export const BackordersTable = ({
                     </span>
                   </td>
                   <td className={`${pad} pr-4 text-center`}>
-                    <button
-                      onClick={() => setSelectedGroup(group)}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-all"
-                      title="View pending indent details"
-                    >
-                      <Eye size={14} /> View
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setSelectedGroup(group)}
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-all"
+                        title="View pending indent details"
+                      >
+                        <Eye size={14} /> View
+                      </button>
+                      {onExportRow && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onExportRow(group);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors focus:outline-none border border-transparent hover:border-emerald-200"
+                          title="Download Excel"
+                        >
+                          <FileSpreadsheet size={16} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   {onRestore && (
                     <td className={`${pad} pr-4 text-center`}>
