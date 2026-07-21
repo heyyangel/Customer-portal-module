@@ -123,6 +123,15 @@ const enforceMoq = (user, product, quantity) => {
   }
 };
 
+// MSIL Codes are only meaningful to Admins, MSIL customers (who order by them),
+// and anyone explicitly flagged. For everyone else the code is ignored entirely:
+// a Non-MSIL customer is never failed on an MSIL Code being missing, unknown,
+// mismatched, or inactive, because it does not apply to them.
+const msilAppliesTo = (user) =>
+  user?.role === 'Admin' ||
+  user?.customerCategory === 'MSIL' ||
+  user?.showMsilCode === true;
+
 export const getReservations = async (req, res, next) => {
   try {
     const reservations = await Reservation.find({ customerId: req.user._id, status: 'Reserved' });
@@ -288,10 +297,10 @@ export const createReservation = async (req, res, next) => {
     // deducted at confirmation time (see confirmBooking), where any unfulfillable
     // quantity is moved to a Pending Indent.
 
-    // MSIL Code Validation — only enforced when a code is actually assigned.
-    // Products without an MSIL Code are allowed to be booked; the MSIL field
-    // is simply left blank throughout the UI.
-    if (product.msilCode) {
+    // MSIL Code Validation — only enforced for users MSIL Codes apply to, and
+    // only when a code is actually assigned. Products without an MSIL Code are
+    // allowed to be booked; the MSIL field is simply left blank throughout the UI.
+    if (msilAppliesTo(req.user) && product.msilCode) {
       const msilDoc = await MsilCode.findOne({ code: product.msilCode });
       if (!msilDoc || msilDoc.status !== 'Active') {
         throw new Error(`MSIL Code ${product.msilCode} for product ${product.skuCode} is inactive or does not exist.`);
@@ -585,10 +594,14 @@ export const validateBulk = async (req, res, next) => {
 
     const validatedRows = [];
 
+    const msilApplies = msilAppliesTo(req.user);
+
     // Prefetch every referenced SKU / MSIL code with one $in query per brand
     // collection, so validation stays fast for large uploads.
     const skuList = [...new Set(rows.map(r => r.skuCode?.trim()).filter(Boolean))];
-    const msilList = [...new Set(rows.map(r => r.msilCode?.trim()).filter(Boolean))];
+    const msilList = msilApplies
+      ? [...new Set(rows.map(r => r.msilCode?.trim()).filter(Boolean))]
+      : [];
     const bySku = new Map();
     const byMsil = new Map();
     for (const Model of [ProductKoken, ProductBIX, ProductIMADA]) {
@@ -608,11 +621,11 @@ export const validateBulk = async (req, res, next) => {
       let status = 'valid';
 
       const skuCode = row.skuCode?.trim();
-      const msilCode = row.msilCode?.trim();
+      const msilCode = msilApplies ? row.msilCode?.trim() : undefined;
       const quantity = Number(row.quantity) || 0;
 
       if (!skuCode && !msilCode) {
-        errors.push("Missing both SKU and MSIL Code.");
+        errors.push(msilApplies ? "Missing both SKU and MSIL Code." : "Missing SKU Code.");
         validatedRows.push({ ...row, status: 'error', errors });
         continue;
       }
@@ -655,9 +668,10 @@ export const validateBulk = async (req, res, next) => {
         warnings.push(`Only ${Math.max(0, product.availableForSale)} in stock. ${shortfall} unit(s) will move to Pending Indent.`);
       }
 
-      // Check MSIL Active — only enforced when the product actually has one
-      // assigned. A product with no MSIL Code is valid; the field is left blank.
-      const targetMsil = product.msilCode;
+      // Check MSIL Active — only enforced for users MSIL Codes apply to, and
+      // only when the product actually has one assigned. A product with no MSIL
+      // Code is valid; the field is left blank.
+      const targetMsil = msilApplies ? product.msilCode : null;
       if (targetMsil) {
         const msilDoc = await MsilCode.findOne({ code: targetMsil });
         if (!msilDoc || msilDoc.status !== 'Active') {
@@ -682,7 +696,7 @@ export const validateBulk = async (req, res, next) => {
 
       // Auto-map both directions: SKU→MSIL and MSIL→SKU. When the product has
       // no MSIL Code, surface "-" in the preview rather than a blank/null.
-      const resolvedMsil = product.msilCode || "-";
+      const resolvedMsil = msilApplies ? (product.msilCode || "-") : "-";
 
       validatedRows.push({
         ...row,

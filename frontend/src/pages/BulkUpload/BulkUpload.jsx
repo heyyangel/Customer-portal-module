@@ -72,7 +72,7 @@ export const BulkUpload = () => {
     setIsParsing(true);
     setFile(uploadedFile);
     try {
-      const parsed = await parseExcelFile(uploadedFile);
+      const parsed = await parseExcelFile(uploadedFile, showMsilCode);
       const validatedRows = await validateRows(parsed);
 
       const hasErrors = validatedRows.some(r => r.status === 'error');

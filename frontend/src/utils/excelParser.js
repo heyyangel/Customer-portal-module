@@ -1,7 +1,11 @@
 import * as XLSX from "xlsx";
 import { revalidateRow } from "../store/bulkImportStore";
 
-export const parseExcelFile = async (file) => {
+// `showMsilCode` mirrors the caller's MSIL visibility rule. When false the MSIL
+// column is ignored even if the sheet contains one, so a Non-MSIL customer who
+// uploads an MSIL-style template is never failed on a code that doesn't apply
+// to them — their rows are resolved by SKU Code alone.
+export const parseExcelFile = async (file, showMsilCode = true) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -27,7 +31,7 @@ export const parseExcelFile = async (file) => {
           );
         };
         const cSKU = getIndex(["SKU Code", "SKU", "Product Code", "Product"]);
-        const cMSIL = getIndex(["MSIL Code", "MSIL"]);
+        const cMSIL = showMsilCode ? getIndex(["MSIL Code", "MSIL"]) : -1;
         const cQty = getIndex(["Quantity", "Qty"]);
 
         for (let i = 1; i < rawRows.length; i++) {
