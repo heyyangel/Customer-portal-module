@@ -18,7 +18,9 @@ export const reservationsApi = {
 
   create: async (productId, quantity) => {
     const response = await api.post('/reservations', { productId, quantity });
-    return response.data.data;
+    // 201 is a new line; 200 means the product was already in the selection
+    // list and the quantity was merged into that existing line.
+    return { reservation: response.data.data, merged: response.status === 200 };
   },
 
   updateQuantity: async (id, quantity) => {

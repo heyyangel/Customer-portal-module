@@ -117,10 +117,10 @@ export const useCartStore = create((set, get) => ({
     set({ loading: true, error: null });
     try {
       const productId = product.id || product._id;
-      await reservationsApi.create(productId, quantity);
+      const { merged } = await reservationsApi.create(productId, quantity);
       await get().fetchReservations();
       set({ loading: false });
-      return { success: true };
+      return { success: true, merged };
     } catch (err) {
       set({ error: err.response?.data?.message || err.message, loading: false });
       return { success: false, error: err.response?.data?.message || err.message };

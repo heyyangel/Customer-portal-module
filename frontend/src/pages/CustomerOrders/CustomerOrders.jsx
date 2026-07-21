@@ -102,7 +102,13 @@ export const CustomerOrders = () => {
     const res = await addItem(selectedProduct, data.quantity);
 
     if (res.success) {
-      toast.success("Product reserved and added to Selection List!");
+      // A merged add updates an existing row instead of adding one, so say so —
+      // an unchanged row count otherwise reads as the add having failed.
+      toast.success(
+        res.merged
+          ? "Quantity added to this product's existing line in the Selection List"
+          : "Product reserved and added to Selection List!",
+      );
       setSelectedProduct(null);
       setProductSearchVal("");
       setValue("quantity", 0);

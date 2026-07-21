@@ -289,8 +289,19 @@ export const createReservation = async (req, res, next) => {
       throw new Error('Product not found.');
     }
 
-    // MOQ applies to Non-MSIL customers only; MSIL customers are exempt.
-    enforceMoq(req.user, product, quantity);
+    // Adding a product that is already in the selection list tops up that line
+    // rather than creating a second row for the same SKU.
+    const existing = await Reservation.findOne({
+      customerId: req.user._id,
+      productId: product._id,
+      status: 'Reserved',
+    });
+    const mergedQuantity = (existing?.quantity || 0) + quantity;
+
+    // MOQ applies to Non-MSIL customers only; MSIL customers are exempt. It is
+    // checked against the merged total, since that is the quantity that will
+    // actually be booked — topping up a line must not fail on the increment alone.
+    enforceMoq(req.user, product, mergedQuantity);
 
     // NOTE: Stock availability is intentionally NOT validated here. Customers may
     // book any quantity, even beyond availableForSale. Stock is only checked and
@@ -308,6 +319,28 @@ export const createReservation = async (req, res, next) => {
     }
 
     // Stock is NOT allocated/deducted at booking time — only at confirmation.
+
+    const who = req.user.company || req.user.user || req.user.email;
+
+    if (existing) {
+      // $inc so a concurrent add (e.g. a bulk import landing alongside a manual
+      // one) cannot lose quantity. The status guard skips a line that was
+      // confirmed or cancelled since it was read; that falls through to a fresh
+      // reservation below. The original expiry date is kept, so topping up a
+      // line does not extend its 7-day window.
+      const updated = await Reservation.findOneAndUpdate(
+        { _id: existing._id, status: 'Reserved' },
+        { $inc: { quantity } },
+        { new: true },
+      );
+
+      if (updated) {
+        await logEvent(req.user, 'Reservation Updated', `Added ${quantity} units of ${product.skuCode} to an existing reservation (now ${updated.quantity})`, req);
+        sendNotification(req.user._id, 'Item Booked', `${product.skuCode} updated to ${updated.quantity} units in your selection list. Confirm within 7 days — it is auto-cancelled after that.`, 'reservation');
+        notifyAdmins({ title: 'New Booking', message: `${who} added ${quantity} more of ${product.skuCode} (now ${updated.quantity} units in their selection list).`, type: 'reservation' });
+        return res.status(200).json({ success: true, data: updated });
+      }
+    }
 
     const year = new Date().getFullYear();
     const seq = await nextSequence(`reservation-${year}`);
@@ -329,7 +362,6 @@ export const createReservation = async (req, res, next) => {
     }]);
 
     await logEvent(req.user, 'Reservation Created', `Reserved ${quantity} units of ${product.skuCode}`, req);
-    const who = req.user.company || req.user.user || req.user.email;
     sendNotification(req.user._id, 'Item Booked', `${product.skuCode} (${quantity} units) added to your selection list. Confirm within 7 days — it is auto-cancelled after that.`, 'reservation');
     notifyAdmins({ title: 'New Booking', message: `${who} booked ${product.skuCode} (${quantity} units). It is now in their selection list.`, type: 'reservation' });
 
