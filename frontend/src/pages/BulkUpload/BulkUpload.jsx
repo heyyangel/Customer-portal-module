@@ -334,9 +334,9 @@ export const BulkUpload = () => {
         isOpen={showConfirm}
         onClose={() => setShowConfirm(false)}
         onConfirm={handleImportToCart}
-        title="Confirm Bulk Import"
+        title="Confirm Bulk Upload"
         description={`You are about to import ${selectedCount} selected row${selectedCount === 1 ? "" : "s"} to the Selection List. Existing manual entries will not be overwritten, duplicate products will be merged.`}
-        confirmText={isImporting ? "Importing…" : "Confirm Import"}
+        confirmText={isImporting ? "Uploading" : "Confirm upload"}
         loading={isImporting}
       />
     </div>
