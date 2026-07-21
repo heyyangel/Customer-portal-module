@@ -8,7 +8,7 @@ import { ErrorPanel } from "../../components/cards/ErrorPanel";
 import { ERPButton, ConfirmationDialog } from "../../components/ui";
 import { useBulkImportStore } from "../../store/bulkImportStore";
 import { useCartStore } from "../../store/cartStore";
-import { useUserStore } from "../../store/userStore";
+import { useShowMsilCode } from "../../hooks/useShowMsilCode";
 import {
   parseExcelFile,
   downloadTemplate,
@@ -24,13 +24,8 @@ export const BulkUpload = () => {
   const { file, rows, summary, setFile, setRows, updateRow, removeRow, reset: resetStore } =
     useBulkImportStore();
   const { confirmBooking, fetchReservations } = useCartStore();
-  const { user } = useUserStore();
-  // MSIL Code is only meaningful to Admins, MSIL customers (who order by it),
-  // and anyone explicitly flagged — everyone else uploads by SKU Code alone.
-  const showMsilCode =
-    user?.role === "Admin" ||
-    user?.customerCategory === "MSIL" ||
-    user?.showMsilCode === true;
+  // Non-MSIL customers upload by SKU Code alone.
+  const showMsilCode = useShowMsilCode();
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);

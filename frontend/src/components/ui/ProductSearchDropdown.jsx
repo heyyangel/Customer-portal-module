@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { useProductStore } from "../../store/productStore";
-import { useUserStore } from "../../store/userStore";
+import { useShowMsilCode } from "../../hooks/useShowMsilCode";
 
 export const ProductSearchDropdown = ({
   placeholder = "Search Product Code...",
@@ -12,8 +12,7 @@ export const ProductSearchDropdown = ({
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
 
-  const { user } = useUserStore();
-  const showMsilCode = user?.role === "Admin" || user?.customerCategory === "MSIL" || user?.showMsilCode === true;
+  const showMsilCode = useShowMsilCode();
 
   const searchResults = useProductStore((state) => state.searchResults);
   const searching = useProductStore((state) => state.searching);

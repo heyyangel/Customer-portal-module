@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
+import { useShowMsilCode } from "../../hooks/useShowMsilCode";
 import toast from "react-hot-toast";
 
 import { OrderTable } from "../../components/tables/OrderTable";
@@ -46,9 +47,7 @@ export const CustomerOrders = () => {
 
   // MOQ is enforced only for Non-MSIL customers; MSIL customers are exempt.
   const isMsil = user?.customerCategory === "MSIL";
-  // MSIL customers order by MSIL Code, so they need to see it. Admins always do,
-  // and the per-user showMsilCode flag can enable it for anyone else.
-  const showMsilCode = user?.role === "Admin" || isMsil || user?.showMsilCode === true;
+  const showMsilCode = useShowMsilCode();
   const productMoq = Number(selectedProduct?.moq) || 0;
   const moqApplies = !isMsil && productMoq > 1;
 

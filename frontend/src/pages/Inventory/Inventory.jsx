@@ -4,6 +4,7 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Boxes, AlertTriangle, Search } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
+import { useShowMsilCode } from '../../hooks/useShowMsilCode';
 import { Pagination } from '../../components/ui/Pagination';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,6 +13,7 @@ const PAGE_SIZE = 12;
 export const Inventory = () => {
   const { products, fetchAllProducts } = useProductStore();
   const { user } = useUserStore();
+  const showMsilCode = useShowMsilCode();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('name-asc');
   const [page, setPage] = useState(1);
@@ -27,10 +29,11 @@ export const Inventory = () => {
   }, [searchTerm, sortBy]);
 
   const filteredProducts = useMemo(() => {
-    let result = products.filter(p => 
+    // MSIL Code is only searchable by users it is shown to.
+    let result = products.filter(p =>
       p.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.msilCode?.toLowerCase().includes(searchTerm.toLowerCase())
+      (showMsilCode && p.msilCode?.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     result.sort((a, b) => {
@@ -99,7 +102,7 @@ export const Inventory = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input 
                 type="text" 
-                placeholder="Search by SKU, MSIL Code, or Name..." 
+                placeholder={showMsilCode ? "Search by SKU, MSIL Code, or Name..." : "Search by SKU or Name..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-sm font-medium text-slate-800"
@@ -125,7 +128,7 @@ export const Inventory = () => {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">SKU Code</th>
-                  <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">MSIL Code</th>
+                  {showMsilCode && <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">MSIL Code</th>}
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">Product Name</th>
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs">Brand / Category</th>
                   <th className="px-6 py-4 font-bold text-slate-600 uppercase text-xs text-center">In Stock</th>
@@ -142,7 +145,7 @@ export const Inventory = () => {
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-6 py-4 font-bold text-slate-900">{product.code}</td>
-                      <td className="px-6 py-4 font-semibold text-slate-600">{product.msilCode || '-'}</td>
+                      {showMsilCode && <td className="px-6 py-4 font-semibold text-slate-600">{product.msilCode || '-'}</td>}
                       <td className="px-6 py-4 font-semibold text-slate-800">{product.name}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col">
@@ -164,7 +167,7 @@ export const Inventory = () => {
                 </AnimatePresence>
                 {filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
+                    <td colSpan={showMsilCode ? 5 : 4} className="px-6 py-12 text-center text-slate-500 font-medium">
                       No products found matching your search.
                     </td>
                   </tr>

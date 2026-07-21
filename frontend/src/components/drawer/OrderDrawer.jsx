@@ -28,6 +28,7 @@ import { ERPButton } from "../ui/ERPButton";
 import { OrderTimeline } from "../cards/OrderTimeline";
 import { OrderSummaryCard } from "../cards/OrderSummaryCard";
 import { useCanViewPrice } from "../../hooks/useCanViewPrice";
+import { useShowMsilCode } from "../../hooks/useShowMsilCode";
 import { PackageX } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -36,6 +37,7 @@ export const OrderDrawer = () => {
   const { user } = useUserStore();
   const { pendingItems, fetchPendingReservations } = useCartStore();
   const canViewPrice = useCanViewPrice();
+  const showMsilCode = useShowMsilCode();
   const isAdmin = user?.role === "Admin";
 
   const [busy, setBusy] = useState(false);
@@ -96,7 +98,7 @@ export const OrderDrawer = () => {
     const columns = [
       { key: "sr", label: "S.No" },
       { key: "code", label: "SKU / Product" },
-      { key: "msil", label: "MSIL Code" },
+      ...(showMsilCode ? [{ key: "msil", label: "MSIL Code" }] : []),
       { key: "qty", label: "Qty" },
       ...(canViewPrice
         ? [
@@ -266,7 +268,7 @@ export const OrderDrawer = () => {
                     <table className="w-full text-left whitespace-nowrap">
                       <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                         <tr>
-                          <th className="px-5 py-3">Code / MSIL</th>
+                          <th className="px-5 py-3">{showMsilCode ? "Code / MSIL" : "SKU Code"}</th>
                           <th className="px-5 py-3">Product Name</th>
                           <th className="px-5 py-3 text-center">Qty</th>
                           {canViewPrice && <th className="px-5 py-3 text-right">Unit Price</th>}
@@ -281,9 +283,11 @@ export const OrderDrawer = () => {
                                 <span className="font-bold text-slate-800">
                                   {item.product.code}
                                 </span>
-                                <span className="text-xs text-slate-500">
-                                  {item.product.msilCode}
-                                </span>
+                                {showMsilCode && (
+                                  <span className="text-xs text-slate-500">
+                                    {item.product.msilCode}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td
@@ -329,7 +333,7 @@ export const OrderDrawer = () => {
                         <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                           <tr>
                             <th className="px-5 py-3">SKU Code</th>
-                            <th className="px-5 py-3">MSIL Code</th>
+                            {showMsilCode && <th className="px-5 py-3">MSIL Code</th>}
                             <th className="px-5 py-3 text-center">Pending Qty</th>
                             <th className="px-5 py-3 text-center">Status</th>
                           </tr>
@@ -338,7 +342,9 @@ export const OrderDrawer = () => {
                           {bookingIndents.map((p) => (
                             <tr key={p._id} className="hover:bg-slate-50">
                               <td className="px-5 py-3 font-bold text-slate-800">{p.product.code}</td>
-                              <td className="px-5 py-3 text-slate-500">{p.product.msilCode || "-"}</td>
+                              {showMsilCode && (
+                                <td className="px-5 py-3 text-slate-500">{p.product.msilCode || "-"}</td>
+                              )}
                               <td className="px-5 py-3 text-center font-black text-amber-600">{p.pendingQuantity}</td>
                               <td className="px-5 py-3 text-center">
                                 <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
