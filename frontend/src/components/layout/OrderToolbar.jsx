@@ -1,4 +1,4 @@
-import { Search, Filter, Download, RefreshCw, X, Users } from "lucide-react";
+import { Search, Filter, Download, X, Users } from "lucide-react";
 import { ERPButton } from "../ui/ERPButton";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useProductStore } from "../../store/productStore";
@@ -8,7 +8,7 @@ import { useUserStore } from "../../store/userStore";
 import toast from "react-hot-toast";
 
 export const OrderToolbar = () => {
-  const { searchQuery, setSearchQuery, filters, setFilters, refresh, selectedIds } =
+  const { searchQuery, setSearchQuery, filters, setFilters, selectedIds } =
     useOrderHistoryStore();
   const [showFilters, setShowFilters] = useState(false);
   const [companies, setCompanies] = useState([]);
@@ -122,9 +122,6 @@ export const OrderToolbar = () => {
             onClick={() => setShowFilters(!showFilters)}
           >
             <Filter size={16} className="mr-2" /> Filters
-          </ERPButton>
-          <ERPButton variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw size={16} className="mr-2" /> Refresh
           </ERPButton>
           <div className="relative group">
             <ERPButton variant="primary" size="sm">

@@ -32,7 +32,7 @@ export const Login = () => {
     <div>
 
       <h2 className="text-2xl font-black text-slate-900 mb-1">Sign in to your account</h2>
-      <p className="text-sm text-slate-500 font-medium mb-8">Welcome to the Shraddha Impex Customer Portal</p>
+      <p className="text-sm text-slate-500 font-medium mb-8">Welcome to the Shraddha Impex Portal</p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div>

@@ -14,9 +14,6 @@ export const AuthLayout = () => {
               <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
                 Shraddha<span className="text-primary-600">Impex</span>
               </h1>
-              <span className="text-sm font-bold text-primary-600 uppercase tracking-widest mt-1 block bg-primary-50 py-1 px-3 rounded-full">
-                Customer Portal
-              </span>
             </div>
           </div>
           <Suspense fallback={<div className="flex h-full w-full py-12 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div></div>}>

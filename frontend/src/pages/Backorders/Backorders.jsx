@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { RefreshCw, PackageX, Download } from "lucide-react";
+import { PackageX, Download } from "lucide-react";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
 import { PageHeader } from "../../components/common/PageHeader";
@@ -10,7 +10,7 @@ import { Pagination } from "../../components/ui/Pagination";
 const PAGE_SIZE = 10;
 
 export const Backorders = () => {
-  const { pendingItems, fetchPendingReservations, restorePending, loading } = useCartStore();
+  const { pendingItems, fetchPendingReservations, restorePending } = useCartStore();
   const { user } = useUserStore();
   const isAdmin = user?.role === "Admin";
   const [page, setPage] = useState(1);
@@ -132,14 +132,6 @@ export const Backorders = () => {
             >
               <Download size={14} />
               Export{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
-            </button>
-            <button
-              onClick={() => fetchPendingReservations()}
-              disabled={loading}
-              className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Refresh
             </button>
           </div>
         }
