@@ -34,6 +34,7 @@ export const BulkUpload = () => {
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [excludedRowIds, setExcludedRowIds] = useState([]);
 
   // Clearing the session also clears row exclusions.
@@ -97,7 +98,7 @@ export const BulkUpload = () => {
     (r) => (r.status === "valid" || r.status === "warning") && selectedRowIds.includes(r.id),
   ).length;
   const canConfirm =
-    summary.invalidRows === 0 && selectedCount > 0 && !hasPendingRows && !isConfirming;
+    summary.invalidRows === 0 && selectedCount > 0 && !hasPendingRows && !isConfirming && !isImporting;
   // A "clean" import (no warnings) gets the highlighted primary confirm.
   const isClean = warningCount === 0;
 
@@ -138,22 +139,35 @@ export const BulkUpload = () => {
   };
 
   const handleImportToCart = async () => {
-    const { attempted, failures } = await importValidRows();
-    const successCount = attempted - failures.length;
+    // Guard against a second submit: the import runs row-by-row and a repeat
+    // click would reserve every row twice.
+    if (isImporting) return;
+    setIsImporting(true);
+    try {
+      const { attempted, failures } = await importValidRows();
+      const successCount = attempted - failures.length;
 
-    if (failures.length > 0) {
+      if (failures.length > 0) {
+        toast.error(
+          `${successCount} of ${attempted} items imported. Failed: ${failures.slice(0, 3).join("; ")}${failures.length > 3 ? "…" : ""}`,
+          { duration: 8000 },
+        );
+        setShowConfirm(false);
+        return;
+      }
+
+      toast.success(`Successfully imported ${successCount} items to selection list`);
+      reset();
+      setShowConfirm(false);
+      navigate("/orders/new");
+    } catch (err) {
       toast.error(
-        `${successCount} of ${attempted} items imported. Failed: ${failures.slice(0, 3).join("; ")}${failures.length > 3 ? "…" : ""}`,
-        { duration: 8000 },
+        err.response?.data?.message || err.message || "Failed to import rows to the selection list.",
       );
       setShowConfirm(false);
-      return;
+    } finally {
+      setIsImporting(false);
     }
-
-    toast.success(`Successfully imported ${successCount} items to selection list`);
-    reset();
-    setShowConfirm(false);
-    navigate("/orders/new");
   };
 
   const handleDirectConfirm = async () => {
@@ -322,7 +336,8 @@ export const BulkUpload = () => {
         onConfirm={handleImportToCart}
         title="Confirm Bulk Import"
         description={`You are about to import ${selectedCount} selected row${selectedCount === 1 ? "" : "s"} to the Selection List. Existing manual entries will not be overwritten, duplicate products will be merged.`}
-        confirmText="Confirm Import"
+        confirmText={isImporting ? "Importing…" : "Confirm Import"}
+        loading={isImporting}
       />
     </div>
   );

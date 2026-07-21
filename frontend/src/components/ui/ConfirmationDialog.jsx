@@ -13,7 +13,10 @@ export const ConfirmationDialog = ({
   variant = "primary",
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
+    // While the confirmed action is in flight the dialog can't be dismissed —
+    // the backdrop and close button would otherwise hide a running request and
+    // leave the user unsure whether it went through.
+    <Modal isOpen={isOpen} onClose={loading ? () => {} : onClose} title={title} size="sm">
       <div className="flex flex-col gap-4">
         <p className="text-sm text-slate-600 leading-relaxed">{description}</p>
         <div className="flex justify-end gap-3 mt-2">
