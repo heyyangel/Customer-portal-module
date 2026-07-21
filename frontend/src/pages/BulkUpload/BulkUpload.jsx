@@ -24,6 +24,13 @@ export const BulkUpload = () => {
   const { file, rows, summary, setFile, setRows, updateRow, removeRow, reset: resetStore } =
     useBulkImportStore();
   const { confirmBooking, fetchReservations } = useCartStore();
+  const { user } = useUserStore();
+  // MSIL Code is only meaningful to Admins, MSIL customers (who order by it),
+  // and anyone explicitly flagged — everyone else uploads by SKU Code alone.
+  const showMsilCode =
+    user?.role === "Admin" ||
+    user?.customerCategory === "MSIL" ||
+    user?.showMsilCode === true;
   const [isParsing, setIsParsing] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -198,14 +205,21 @@ export const BulkUpload = () => {
           <div className="bg-white border border-slate-200 p-6 rounded-xl">
             <h4 className="font-bold text-slate-800 mb-2">Validation Rules</h4>
             <ul className="text-sm text-slate-600 list-disc list-inside space-y-1">
-              <li>SKU Code / MSIL Code & Quantity are validated.</li>
+              <li>
+                {showMsilCode ? "SKU Code / MSIL Code & Quantity" : "SKU Code & Quantity"} are
+                validated.
+              </li>
               <li>Duplicates will be automatically merged.</li>
               <li>Quantities exceeding available stock will be flagged.</li>
             </ul>
 
             <div className="mt-4 flex flex-col gap-2">
               <p className="text-xs font-semibold text-slate-500">Download a bulk upload template:</p>
-              <ERPButton variant="outline" className="w-full" onClick={() => downloadTemplate()}>
+              <ERPButton
+                variant="outline"
+                className="w-full"
+                onClick={() => downloadTemplate(showMsilCode)}
+              >
                 <Download size={16} className="mr-2" />
                 Download Bulk Upload Template
               </ERPButton>
@@ -225,7 +239,7 @@ export const BulkUpload = () => {
                   <ERPButton
                     variant="outline"
                     size="sm"
-                    onClick={() => downloadErrorReport(rows)}
+                    onClick={() => downloadErrorReport(rows, showMsilCode)}
                     className="text-error-600 border-error-200 hover:bg-error-50"
                   >
                     <AlertTriangle size={14} className="mr-2" /> Download Error
@@ -240,6 +254,7 @@ export const BulkUpload = () => {
                 selectedIds={selectedRowIds}
                 onToggleRow={toggleRow}
                 onToggleAll={toggleAllRows}
+                showMsilCode={showMsilCode}
               />
 
               <div className="flex justify-end mt-4 gap-4">

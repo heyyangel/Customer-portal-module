@@ -97,8 +97,19 @@ export const TEMPLATE_CONFIG = {
   ],
 };
 
-export const downloadTemplate = () => {
-  const cfg = TEMPLATE_CONFIG;
+// Non-MSIL customers never order by MSIL Code, so they get a template without
+// that column and the sample rows are keyed on SKU Code alone.
+export const TEMPLATE_CONFIG_NO_MSIL = {
+  ...TEMPLATE_CONFIG,
+  headers: ["SKU Code", "Quantity"],
+  sample: [
+    ["13405M-8", "10"],
+    ["14205K-2", "5"],
+  ],
+};
+
+export const downloadTemplate = (showMsilCode = true) => {
+  const cfg = showMsilCode ? TEMPLATE_CONFIG : TEMPLATE_CONFIG_NO_MSIL;
   const templateData = [cfg.headers, ...cfg.sample];
 
   const ws = XLSX.utils.aoa_to_sheet(templateData);
@@ -107,15 +118,19 @@ export const downloadTemplate = () => {
   XLSX.writeFile(wb, cfg.fileName);
 };
 
-export const downloadErrorReport = (rows) => {
-  const errorData = [["Row Number", "SKU Code", "MSIL Code", "Quantity", "Errors"]];
+export const downloadErrorReport = (rows, showMsilCode = true) => {
+  const errorData = [
+    showMsilCode
+      ? ["Row Number", "SKU Code", "MSIL Code", "Quantity", "Errors"]
+      : ["Row Number", "SKU Code", "Quantity", "Errors"],
+  ];
   rows
     .filter((r) => r.status === "error")
     .forEach((row) => {
       errorData.push([
         String(row.originalRowNumber),
         row.skuCode,
-        row.msilCode,
+        ...(showMsilCode ? [row.msilCode] : []),
         String(row.quantity),
         row.errors.join("; "),
       ]);

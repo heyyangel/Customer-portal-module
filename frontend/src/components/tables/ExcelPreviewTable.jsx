@@ -15,6 +15,7 @@ export const ExcelPreviewTable = ({
   selectedIds = null,
   onToggleRow = null,
   onToggleAll = null,
+  showMsilCode = true,
 }) => {
   const selectable = !!selectedIds && !!onToggleRow;
   // Only rows that can actually be imported are eligible for selection.
@@ -41,7 +42,7 @@ export const ExcelPreviewTable = ({
             )}
             <th className="px-4 py-3">Row</th>
             <th className="px-4 py-3">SKU Code</th>
-            <th className="px-4 py-3">MSIL Code</th>
+            {showMsilCode && <th className="px-4 py-3">MSIL Code</th>}
             <th className="px-4 py-3">Product Info</th>
             <th className="px-4 py-3 text-center">Avail Stock</th>
             <th className="px-4 py-3 text-center">Req Qty</th>
@@ -85,17 +86,19 @@ export const ExcelPreviewTable = ({
                       className="w-24 px-2 py-1 text-sm font-bold border border-slate-300 rounded outline-none focus:border-primary-500 bg-white"
                     />
                   </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.msilCode && row.msilCode !== "-" ? row.msilCode : ""}
-                      placeholder="-"
-                      onChange={(e) =>
-                        onUpdateRow(row.id, { msilCode: e.target.value })
-                      }
-                      className="w-24 px-2 py-1 text-sm font-bold border border-slate-300 rounded outline-none focus:border-primary-500 bg-white placeholder:text-slate-400 placeholder:font-normal"
-                    />
-                  </td>
+                  {showMsilCode && (
+                    <td className="px-4 py-3">
+                      <input
+                        type="text"
+                        value={row.msilCode && row.msilCode !== "-" ? row.msilCode : ""}
+                        placeholder="-"
+                        onChange={(e) =>
+                          onUpdateRow(row.id, { msilCode: e.target.value })
+                        }
+                        className="w-24 px-2 py-1 text-sm font-bold border border-slate-300 rounded outline-none focus:border-primary-500 bg-white placeholder:text-slate-400 placeholder:font-normal"
+                      />
+                    </td>
+                  )}
                   <td
                     className="px-4 py-3 text-slate-600 truncate max-w-[150px]"
                     title={row.product ? String(row.product.category || row.product.name) : ""}
