@@ -48,12 +48,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Routes
-// No general rate limit on /api: a single page load fires several requests, so
-// any per-IP ceiling low enough to be meaningful ends up locking real users out
-// mid-task. Credential endpoints keep their own brute-force guard.
-//
-// authLimiter is applied per-route inside the auth router (login/register only),
-// not here — mounting it on the whole router also throttled /me.
+// Rate limiting is intentionally absent: a single page load costs several
+// requests, and any per-IP ceiling tight enough to matter locked real users out
+// mid-task. Nothing throttles /api, including the login and register endpoints.
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/products', inventoryRouter);

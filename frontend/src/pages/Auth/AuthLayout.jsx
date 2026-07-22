@@ -24,7 +24,7 @@ export const AuthLayout = () => {
       <div className="hidden lg:block relative w-0 flex-1 bg-primary-950">
         <img
           className="absolute inset-0 h-full w-full object-cover opacity-90"
-          src="/loginImg.avif"
+          src="/loginImg.png"
           alt="Precision Engineering Tools"
         />
         <div className="absolute inset-0 bg-linear-to-tr from-primary-950 via-primary-900/80 to-primary-700/50" />

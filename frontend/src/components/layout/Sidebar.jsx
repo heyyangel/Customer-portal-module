@@ -32,7 +32,7 @@ export const Sidebar = () => {
     },
     { name: "Bulk Upload", path: "/orders/bulk-upload", icon: UploadCloud },
     { name: "Booking History", path: "/orders/history", icon: History },
-    { name: "Raise Indent", path: "/orders/backorders", icon: PackageX },
+    { name: "Indent History", path: "/orders/indent-history", icon: PackageX },
     { name: "Inventory", path: "/inventory", icon: Boxes },
     ...(user?.role === 'Admin' ? [
       { name: "User Management", path: "/admin/users", icon: Users },

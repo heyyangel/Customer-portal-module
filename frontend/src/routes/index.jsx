@@ -51,7 +51,7 @@ export const router = createBrowserRouter([
             element: <BulkUpload />,
           },
           {
-            path: "orders/backorders",
+            path: "orders/indent-history",
             element: <Backorders />,
           },
           {

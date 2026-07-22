@@ -77,7 +77,7 @@ export const KPIStats = () => {
       value: stats?.pendingBackorders?.toLocaleString() ?? '—',
       sub: `${stats?.pendingBackorderQty ?? 0} units awaiting stock`,
       icon: PackageX, color: 'amber',
-      path: '/orders/backorders',
+      path: '/orders/indent-history',
     },
     ...(user?.role === 'Admin' ? [{
       id: 6, title: 'Active Users',
