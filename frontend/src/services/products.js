@@ -51,6 +51,26 @@ export const productsApi = {
     return lists.flat();
   },
 
+  // Inventory view across all brands. Search, sort, paging and the KPI counts
+  // are resolved server-side, so they cover the whole catalogue rather than a
+  // downloaded subset. `total` is the search-filtered count (drives paging);
+  // `catalogueTotal` / `lowStockCount` describe the catalogue as a whole.
+  getInventory: async ({ search = '', sort = 'name-asc', page = 1, limit = 12 } = {}) => {
+    const params = new URLSearchParams({ sort, page: String(page), limit: String(limit) });
+    if (search) params.set('search', search);
+    const response = await api.get(`/products?${params.toString()}`);
+    const { data, pagination, totals } = response.data;
+    return {
+      // The server tags each row with its source brand; keep that over the
+      // vendorName mapProduct would otherwise use.
+      items: (data || []).map((p) => ({ ...mapProduct(p), brand: p.brand })),
+      total: pagination?.total ?? 0,
+      pages: pagination?.pages ?? 1,
+      catalogueTotal: totals?.catalogue ?? 0,
+      lowStockCount: totals?.lowStock ?? 0,
+    };
+  },
+
   getByCode: async (brand = 'koken', skuCode) => {
     try {
       const response = await api.get(`/products/${brand}/${encodeURIComponent(skuCode)}`);

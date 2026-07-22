@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Boxes, AlertTriangle, Search } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
@@ -11,52 +10,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 const PAGE_SIZE = 12;
 
 export const Inventory = () => {
-  const { products, fetchAllProducts } = useProductStore();
+  const { inventory, inventoryLoading, fetchInventory } = useProductStore();
   const { user } = useUserStore();
+  const isAdmin = user?.role === "Admin";
   const showMsilCode = useShowMsilCode();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('name-asc');
   const [page, setPage] = useState(1);
 
-  // Admin Inventory shows every item across all brands, including low/zero stock.
+  // Debounce typing so a search costs one request rather than one per keystroke,
+  // keeping load off the API and avoiding a burst of results racing each other.
   useEffect(() => {
-    fetchAllProducts();
-  }, [fetchAllProducts]);
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Reset to the first page whenever the result set changes.
+  // Back to the first page whenever the result set changes underneath us.
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, sortBy]);
+  }, [debouncedSearch, sortBy]);
 
-  const filteredProducts = useMemo(() => {
-    // MSIL Code is only searchable by users it is shown to.
-    let result = products.filter(p =>
-      p.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (showMsilCode && p.msilCode?.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+  // Search, sort and paging all run server-side, so this covers the whole
+  // catalogue instead of whatever subset was downloaded.
+  useEffect(() => {
+    fetchInventory({ search: debouncedSearch, sort: sortBy, page, limit: PAGE_SIZE });
+  }, [fetchInventory, debouncedSearch, sortBy, page]);
 
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'stock-asc': return a.availableStock - b.availableStock;
-        case 'stock-desc': return b.availableStock - a.availableStock;
-        case 'name-desc': return (b.name || '').localeCompare(a.name || '');
-        case 'name-asc': 
-        default:
-          return (a.name || '').localeCompare(b.name || '');
-      }
-    });
+  const { items, total, pages, catalogueTotal, lowStockCount } = inventory;
 
-    return result;
-  }, [products, searchTerm, sortBy]);
-
-  const totalSKUs = products.length;
-  const lowStockItems = products.filter(p => p.availableStock < (p.moq * 2 || 10)).length;
-
-  // Clamp the page in case the filtered set shrank, then slice for the current page.
-  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE) || 1;
-  const currentPage = Math.min(page, totalPages);
-  const pageProducts = filteredProducts.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  // A shrinking result set can leave us past the last page.
+  useEffect(() => {
+    if (page > pages) setPage(pages);
+  }, [pages, page]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,8 +53,9 @@ export const Inventory = () => {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* KPIs — Low Stock is an internal supply signal, so it is Admin-only.
+          Customers see the SKU count on its own, full width. */}
+      <div className={`grid grid-cols-1 gap-6 ${isAdmin ? "md:grid-cols-2" : ""}`}>
         <Card className="bg-white border-slate-200">
           <CardContent className="p-6 flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
@@ -76,22 +63,24 @@ export const Inventory = () => {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total SKUs</p>
-              <h3 className="text-2xl font-bold text-slate-900">{totalSKUs}</h3>
+              <h3 className="text-2xl font-bold text-slate-900">{catalogueTotal.toLocaleString()}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-slate-200">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
-              <AlertTriangle size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Low Stock</p>
-              <h3 className="text-2xl font-bold text-slate-900">{lowStockItems}</h3>
-            </div>
-          </CardContent>
-        </Card>
+        {isAdmin && (
+          <Card className="bg-white border-slate-200">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Low Stock</p>
+                <h3 className="text-2xl font-bold text-slate-900">{lowStockCount.toLocaleString()}</h3>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Card>
@@ -136,7 +125,7 @@ export const Inventory = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 <AnimatePresence>
-                  {pageProducts.map(product => (
+                  {items.map(product => (
                     <motion.tr 
                       key={product.code}
                       initial={{ opacity: 0 }}
@@ -165,10 +154,12 @@ export const Inventory = () => {
                     </motion.tr>
                   ))}
                 </AnimatePresence>
-                {filteredProducts.length === 0 && (
+                {items.length === 0 && (
                   <tr>
                     <td colSpan={showMsilCode ? 5 : 4} className="px-6 py-12 text-center text-slate-500 font-medium">
-                      No products found matching your search.
+                      {inventoryLoading
+                        ? "Loading products…"
+                        : "No products found matching your search."}
                     </td>
                   </tr>
                 )}
@@ -176,12 +167,12 @@ export const Inventory = () => {
             </table>
           </div>
 
-          {filteredProducts.length > 0 && (
+          {total > 0 && (
             <div className="p-4 border-t border-slate-200">
               <Pagination
-                page={currentPage}
+                page={page}
                 pageSize={PAGE_SIZE}
-                totalItems={filteredProducts.length}
+                totalItems={total}
                 onPageChange={setPage}
               />
             </div>

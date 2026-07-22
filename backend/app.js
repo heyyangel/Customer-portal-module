@@ -9,7 +9,7 @@ import { errorHandler } from './middlewares/errorHandler.js';
 // Route imports
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/user.routes.js';
-import productRoutes from './modules/products/product.routes.js';
+import productRoutes, { inventoryRouter } from './modules/products/product.routes.js';
 import orderRoutes from './modules/orders/order.routes.js';
 import reservationRoutes from './modules/reservations/reservation.routes.js';
 import notificationRoutes from './modules/notifications/notification.routes.js';
@@ -17,6 +17,12 @@ import roleRoutes from './modules/roles/role.routes.js';
 import apiRoutes from './routes/api.routes.js';
 
 const app = express();
+
+// Behind a hosting proxy/load balancer, req.ip is the proxy's address unless we
+// trust the X-Forwarded-For header. Without this every user shares one identity,
+// so anything keyed on IP (the login brute-force guard) would count the whole
+// userbase as a single client.
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(helmet());
@@ -42,15 +48,15 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Routes
-import { apiLimiter } from './middlewares/rateLimiter.js';
-
-// Apply general rate limiter to all /api routes
-app.use('/api', apiLimiter);
-
+// No general rate limit on /api: a single page load fires several requests, so
+// any per-IP ceiling low enough to be meaningful ends up locking real users out
+// mid-task. Credential endpoints keep their own brute-force guard.
+//
 // authLimiter is applied per-route inside the auth router (login/register only),
 // not here — mounting it on the whole router also throttled /me.
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/products', inventoryRouter);
 app.use('/api/v1/products/:brand', productRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/reservations', reservationRoutes);

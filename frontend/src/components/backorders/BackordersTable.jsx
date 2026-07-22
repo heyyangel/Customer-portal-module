@@ -88,7 +88,6 @@ export const BackordersTable = ({
               <th className={`${pad} pr-4`}>Category</th>
               <th className={`${pad} pr-4 text-center`}>Items</th>
               <th className={`${pad} pr-4 text-center`}>Pending Qty</th>
-              <th className={`${pad} pr-4 text-center`}>Status</th>
               <th className={`${pad} pr-4 text-center`}>Details</th>
               {onRestore && <th className={`${pad} pr-4 text-center`}>Action</th>}
             </tr>
@@ -133,11 +132,6 @@ export const BackordersTable = ({
                   </td>
                   <td className={`${pad} pr-4 text-center font-black text-amber-600`}>
                     {totalQty}
-                  </td>
-                  <td className={`${pad} pr-4 text-center`}>
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                      {primary.status}
-                    </span>
                   </td>
                   <td className={`${pad} pr-4 text-center`}>
                     <div className="flex items-center justify-center gap-2">

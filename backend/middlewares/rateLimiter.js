@@ -1,14 +1,9 @@
 import rateLimit from 'express-rate-limit';
 
-export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  limit: 100, 
-  standardHeaders: 'draft-7', 
-  legacyHeaders: false, 
-  message: {
-    message: 'Too many requests from this IP, please try again after 15 minutes'
-  }
-});
+// There is deliberately no general /api limiter. Normal use of the portal costs
+// several requests per page, so a per-IP ceiling tight enough to stop abuse also
+// blocks customers part-way through a booking. Only the credential endpoints
+// below are throttled.
 
 // Brute-force guard for the UNAUTHENTICATED credential endpoints only (login,
 // register). Do not mount this on the whole auth router: /me is an authenticated

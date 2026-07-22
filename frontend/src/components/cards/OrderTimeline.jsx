@@ -1,8 +1,9 @@
 import { CheckCircle2, Circle, Check, Ban } from "lucide-react";
 
-// Stages map to the admin-managed booking lifecycle.
+// Stages map to the admin-managed booking lifecycle. `key` is the stored status
+// value; `label` is display-only, so renaming one never affects the data.
 const LIFECYCLE = [
-  { key: "PO Received", label: "PO Received" },
+  { key: "PO Received", label: "Booking Received" },
   { key: "Ready for Dispatch", label: "Ready for Dispatch" },
   { key: "Dispatched", label: "Dispatched" },
   { key: "Delivered", label: "Delivered" },

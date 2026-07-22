@@ -44,6 +44,21 @@ export const useProductStore = create((set) => ({
     }
   },
 
+  // Server-paginated Inventory view. Kept separate from fetchAllProducts, which
+  // Booking History still uses to enrich exports with live stock figures.
+  inventory: { items: [], total: 0, pages: 1, catalogueTotal: 0, lowStockCount: 0 },
+  inventoryLoading: false,
+
+  fetchInventory: async (params) => {
+    set({ inventoryLoading: true, error: null });
+    try {
+      const inventory = await productsApi.getInventory(params);
+      set({ inventory, inventoryLoading: false });
+    } catch (err) {
+      set({ error: err.message || "Failed to load inventory", inventoryLoading: false });
+    }
+  },
+
   searchProducts: async (query, brand) => {
     if (!query) {
       set({ searchResults: [] });
