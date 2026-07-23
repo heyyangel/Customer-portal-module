@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
-import { Boxes, AlertTriangle, Search } from 'lucide-react';
+import { Boxes, AlertTriangle, Search, Download, Loader2 } from 'lucide-react';
 import { useProductStore } from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
 import { useShowMsilCode } from '../../hooks/useShowMsilCode';
 import { Pagination } from '../../components/ui/Pagination';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 const PAGE_SIZE = 12;
 
 export const Inventory = () => {
-  const { inventory, inventoryLoading, fetchInventory } = useProductStore();
+  const { inventory, inventoryLoading, fetchInventory, exportInventory } = useProductStore();
   const { user } = useUserStore();
   const isAdmin = user?.role === "Admin";
   const showMsilCode = useShowMsilCode();
@@ -18,6 +19,7 @@ export const Inventory = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('name-asc');
   const [page, setPage] = useState(1);
+  const [downloading, setDownloading] = useState(false);
 
   // Debounce typing so a search costs one request rather than one per keystroke,
   // keeping load off the API and avoiding a burst of results racing each other.
@@ -43,6 +45,35 @@ export const Inventory = () => {
   useEffect(() => {
     if (page > pages) setPage(pages);
   }, [pages, page]);
+
+  // Download the whole filtered catalogue (all pages) as Excel. The current
+  // search and sort are applied so the file matches what's on screen.
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const rows = await exportInventory({ search: debouncedSearch, sort: sortBy });
+      if (!rows.length) {
+        toast.error('No products to export.');
+        return;
+      }
+      const { exportToExcel } = await import('../../utils/exportUtils');
+      const cols = [
+        { key: 'code', label: 'SKU Code' },
+        ...(showMsilCode ? [{ key: 'msilCode', label: 'MSIL Code', format: (v) => v || '-' }] : []),
+        { key: 'name', label: 'Product Name' },
+        { key: 'brand', label: 'Brand' },
+        { key: 'category', label: 'Category' },
+        { key: 'availableStock', label: 'In Stock' },
+      ];
+      exportToExcel(rows, cols, 'Inventory');
+      toast.success(`Exported ${rows.length} product${rows.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to export inventory.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -98,7 +129,7 @@ export const Inventory = () => {
               />
             </div>
             <div className="flex gap-2 w-full md:w-auto">
-              <select 
+              <select
                 className="w-full md:w-auto px-3 py-1.5 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white outline-none focus:ring-1 focus:ring-primary-500 cursor-pointer"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
@@ -108,6 +139,15 @@ export const Inventory = () => {
                 <option value="stock-desc">Sort: Stock (High-Low)</option>
                 <option value="stock-asc">Sort: Stock (Low-High)</option>
               </select>
+              <button
+                onClick={handleDownload}
+                disabled={downloading || total === 0}
+                title="Download inventory as Excel"
+                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-md transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              >
+                {downloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                {downloading ? 'Preparing…' : 'Download'}
+              </button>
             </div>
           </div>
 

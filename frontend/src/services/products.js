@@ -71,6 +71,15 @@ export const productsApi = {
     };
   },
 
+  // Whole filtered catalogue in one request, for the Inventory download.
+  // Honours the same search, sort and per-user brand rules as getInventory.
+  getInventoryExport: async ({ search = '', sort = 'name-asc' } = {}) => {
+    const params = new URLSearchParams({ sort, all: 'true' });
+    if (search) params.set('search', search);
+    const response = await api.get(`/products?${params.toString()}`);
+    return (response.data.data || []).map((p) => ({ ...mapProduct(p), brand: p.brand }));
+  },
+
   getByCode: async (brand = 'koken', skuCode) => {
     try {
       const response = await api.get(`/products/${brand}/${encodeURIComponent(skuCode)}`);

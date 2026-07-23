@@ -41,6 +41,12 @@ export const getInventory = async (req, res, next) => {
     const skip = (page - 1) * limit;
     const sortSpec = SORT_SPECS[sort] || SORT_SPECS['name-asc'];
 
+    // Export mode returns the whole filtered catalogue in one shot (no paging),
+    // capped so a runaway request can't pull unbounded rows.
+    const exportAll = ['true', '1'].includes(String(req.query.all));
+    const EXPORT_CAP = 10000;
+    const fetchLimit = exportAll ? EXPORT_CAP : skip + limit;
+
     // Low Stock is an Admin-only tile, and the $expr count cannot use an index,
     // so it is only run for the users who actually see it.
     const wantsLowStock = req.user?.role === 'Admin';
@@ -58,19 +64,24 @@ export const getInventory = async (req, res, next) => {
       if (msilApplies) query.$or.push({ msilCode: { $regex: search, $options: 'i' } });
     }
 
+    // MSIL customers do not carry the IMADA brand, so it is excluded from their
+    // Inventory entirely — rows, counts and low-stock all follow from this list.
+    // Admins always see every brand.
+    const isMsilCustomer =
+      req.user?.role !== 'Admin' && req.user?.customerCategory === 'MSIL';
     const models = [
       [ProductKoken, 'KOKEN'],
       [ProductBIX, 'BIX'],
-      [ProductIMADA, 'IMADA'],
+      ...(isMsilCustomer ? [] : [[ProductIMADA, 'IMADA']]),
     ];
 
-    // Global ordering across three collections: take the first (skip + limit)
+    // Global ordering across the brand collections: take the first fetchLimit
     // of each, merge, re-sort, then slice the requested page out of the merge.
     // The globally first (skip + limit) rows are always contained in that union.
     const perModel = await Promise.all(
       models.map(async ([Model, brand]) => {
         const [rows, total, catalogue, lowStock] = await Promise.all([
-          Model.find(query).sort(sortSpec).limit(skip + limit).lean(),
+          Model.find(query).sort(sortSpec).limit(fetchLimit).lean(),
           Model.countDocuments(query),
           // Without a search the filtered count is already the catalogue count.
           search ? Model.countDocuments() : Promise.resolve(null),
@@ -81,7 +92,7 @@ export const getInventory = async (req, res, next) => {
     );
 
     const [sortField, sortDir] = Object.entries(sortSpec)[0];
-    const merged = perModel
+    const sorted = perModel
       .flatMap((m) => m.rows)
       .sort((a, b) => {
         const av = a[sortField];
@@ -90,8 +101,8 @@ export const getInventory = async (req, res, next) => {
           return String(av ?? '').localeCompare(String(bv ?? '')) * sortDir;
         }
         return ((av ?? 0) - (bv ?? 0)) * sortDir;
-      })
-      .slice(skip, skip + limit);
+      });
+    const merged = exportAll ? sorted : sorted.slice(skip, skip + limit);
 
     const total = perModel.reduce((sum, m) => sum + m.total, 0);
 

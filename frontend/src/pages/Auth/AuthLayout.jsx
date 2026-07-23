@@ -29,15 +29,11 @@ export const AuthLayout = () => {
         />
         <div className="absolute inset-0 bg-linear-to-tr from-primary-950 via-primary-900/80 to-primary-700/50" />
         <div className="absolute inset-0 flex flex-col justify-center px-16 lg:px-24 z-10 text-white">
-          <span className="text-xs font-bold text-primary-200 uppercase tracking-[0.2em] mb-4">
-            Enterprise ERP Portal
-          </span>
           <h2 className="text-4xl font-black tracking-tight mb-4 leading-tight">
-            Dealer, Supplier & Distributor
+            Supplier & Distributor
           </h2>
           <p className="text-lg text-primary-100/80 font-medium max-w-lg">
-            Precision measuring instruments, testing equipment, force gauges, impact sockets and torque wrenches.
-          </p>
+            Impact Socket, Ratchet Handles, Screwdriver Bits, Protective Sockets, Force Instruments, Force Gauge, Torque Gauge, Torque Meters, Torque Wrenches, Taper Scale, Pin Gauge, Hand Tools, and more.          </p>
         </div>
       </div>
     </div>

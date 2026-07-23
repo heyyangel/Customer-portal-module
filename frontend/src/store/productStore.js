@@ -59,6 +59,9 @@ export const useProductStore = create((set) => ({
     }
   },
 
+  // Returns the full filtered catalogue for download (not stored in state).
+  exportInventory: async (params) => productsApi.getInventoryExport(params),
+
   searchProducts: async (query, brand) => {
     if (!query) {
       set({ searchResults: [] });

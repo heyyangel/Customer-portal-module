@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { User, Bell, Mail, Building, Globe, Shield, Key, Trash2 } from 'lucide-react';
+import { User, Mail, Building, Shield, Key, Trash2 } from 'lucide-react';
 import { useUserStore } from '../../store/userStore';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -15,7 +15,6 @@ export const Settings = () => {
   // The Security (change password) tab is available to admins only.
   const tabs = [
     { id: 'profile', label: 'My Profile', icon: User },
-    { id: 'preferences', label: 'Preferences', icon: Globe },
     ...(isAdmin ? [{ id: 'security', label: 'Security', icon: Shield }] : []),
   ];
 
@@ -61,23 +60,6 @@ export const Settings = () => {
     else toast.error(res.error || 'Failed to update profile');
   };
 
-  // --- Preferences (persist on toggle) ---
-  const [prefs, setPrefs] = useState({
-    emailNotifications: user?.preferences?.emailNotifications ?? true,
-    pushNotifications: user?.preferences?.pushNotifications ?? false,
-  });
-
-  const togglePref = async (key) => {
-    const next = { ...prefs, [key]: !prefs[key] };
-    setPrefs(next);
-    const res = await updateProfile({ preferences: next });
-    if (res.success) toast.success('Preferences saved');
-    else {
-      setPrefs(prefs); // roll back
-      toast.error(res.error || 'Failed to save preferences');
-    }
-  };
-
   // --- Security (change own password) ---
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
@@ -114,13 +96,17 @@ export const Settings = () => {
         <div>
           <h2 className="text-xl font-bold text-slate-800 tracking-tight">Account Settings</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Manage your personal profile{isAdmin ? ', security,' : ''} and app preferences.
+            {isAdmin
+              ? 'Manage your personal profile and security.'
+              : 'Manage your personal profile.'}
           </p>
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar Tabs */}
+        {/* Sidebar Tabs — hidden when there is only one section (profile only),
+            since a single-item tab strip is just visual noise. */}
+        {tabs.length > 1 && (
         <div className="w-full md:w-64 flex flex-col gap-1 p-2 bg-slate-50/80 rounded-2xl border border-slate-200/60 shadow-inner h-fit">
           {tabs.map(tab => (
             <button
@@ -144,6 +130,7 @@ export const Settings = () => {
             </button>
           ))}
         </div>
+        )}
 
         {/* Content Area */}
         <div className="flex-1">
@@ -216,43 +203,6 @@ export const Settings = () => {
                 </CardContent>
               </Card>
             </div>
-          )}
-
-          {activeTab === 'preferences' && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-6">App Preferences</h3>
-
-                <div className="flex flex-col gap-8">
-                  {/* Notifications */}
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">Notifications</h4>
-                    <div className="flex flex-col gap-4">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600"><Mail size={14}/></div>
-                          <div>
-                            <p className="font-bold text-slate-800 text-sm">Email Notifications</p>
-                            <p className="text-xs text-slate-500">Receive booking updates via email.</p>
-                          </div>
-                        </div>
-                        <input type="checkbox" checked={prefs.emailNotifications} onChange={() => togglePref('emailNotifications')} className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer" />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600"><Bell size={14}/></div>
-                          <div>
-                            <p className="font-bold text-slate-800 text-sm">Push Notifications</p>
-                            <p className="text-xs text-slate-500">Receive browser notifications for real-time events.</p>
-                          </div>
-                        </div>
-                        <input type="checkbox" checked={prefs.pushNotifications} onChange={() => togglePref('pushNotifications')} className="w-4 h-4 text-primary-600 rounded border-slate-300 focus:ring-primary-500 cursor-pointer" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           )}
 
           {activeTab === 'security' && isAdmin && (

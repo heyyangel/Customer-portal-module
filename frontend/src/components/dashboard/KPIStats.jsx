@@ -73,7 +73,7 @@ export const KPIStats = () => {
           path: '/orders/history',
         },
     {
-      id: 7, title: 'Raise Indent',
+      id: 7, title: 'Indent History',
       value: stats?.pendingBackorders?.toLocaleString() ?? '—',
       sub: `${stats?.pendingBackorderQty ?? 0} units awaiting stock`,
       icon: PackageX, color: 'amber',
