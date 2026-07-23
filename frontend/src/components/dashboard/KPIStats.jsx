@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '../ui/Card';
-import { Package, Clock, CheckCircle, AlertTriangle, Users, Truck, PackageX, Loader2 } from 'lucide-react';
+import { Package, Clock, AlertTriangle, Users, PackageX, Loader2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useUserStore } from '../../store/userStore';
 
@@ -20,8 +20,8 @@ export const KPIStats = () => {
   }, []);
 
   if (loading) {
-    const skeletonCount = user?.role === 'Admin' ? 6 : 5;
-    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5';
+    const skeletonCount = user?.role === 'Admin' ? 5 : 3;
+    const gridCols = user?.role === 'Admin' ? 'xl:grid-cols-5' : 'xl:grid-cols-3';
     return (
       <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 ${gridCols} gap-4`}>
         {Array.from({ length: skeletonCount }).map((_, i) => (
@@ -50,28 +50,13 @@ export const KPIStats = () => {
       icon: Clock, color: 'warning',
       path: '/orders/history',
     },
-    {
-      id: 4, title: 'Delivered',
-      value: stats?.deliveredOrders?.toLocaleString() ?? '—',
-      sub: 'Completed deliveries',
-      icon: CheckCircle, color: 'success',
-      path: '/orders/history',
-    },
-    user?.role === 'Admin'
-      ? {
-          id: 5, title: 'Low Stock SKUs',
-          value: stats?.lowStockAlerts?.toLocaleString() ?? '—',
-          sub: 'Available for sale ≤ 0',
-          icon: AlertTriangle, color: 'error',
-          path: '/inventory',
-        }
-      : {
-          id: 5, title: 'In Transit',
-          value: stats?.dispatchedOrders?.toLocaleString() ?? '—',
-          sub: 'Dispatched, on the way',
-          icon: Truck, color: 'indigo',
-          path: '/orders/history',
-        },
+    ...(user?.role === 'Admin' ? [{
+      id: 5, title: 'Low Stock SKUs',
+      value: stats?.lowStockAlerts?.toLocaleString() ?? '—',
+      sub: 'Available for sale ≤ 0',
+      icon: AlertTriangle, color: 'error',
+      path: '/inventory',
+    }] : []),
     {
       id: 7, title: 'Indent History',
       value: stats?.pendingBackorders?.toLocaleString() ?? '—',
@@ -99,7 +84,7 @@ export const KPIStats = () => {
   };
 
   const colClassByCount = {
-    4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6', 7: 'xl:grid-cols-7'
+    3: 'xl:grid-cols-3', 4: 'xl:grid-cols-4', 5: 'xl:grid-cols-5', 6: 'xl:grid-cols-6', 7: 'xl:grid-cols-7'
   };
   const gridCols = colClassByCount[tiles.length] || 'xl:grid-cols-6';
 
