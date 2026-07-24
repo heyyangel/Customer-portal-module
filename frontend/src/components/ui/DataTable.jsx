@@ -1,13 +1,8 @@
 import React, { useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { SkeletonLoader } from "./SkeletonLoader";
 import { EmptyState } from "./EmptyState";
-import { Button } from "./Button";
+import { Pagination } from "./Pagination";
 
 export function DataTable({ columns, data, loading = false, pageSize = 5 }) {
   const [sortKey, setSortKey] = useState(null);
@@ -136,47 +131,14 @@ export function DataTable({ columns, data, loading = false, pageSize = 5 }) {
         </table>
       </div>
 
-      {!loading && totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
-          <span className="text-xs font-semibold text-slate-500">
-            Showing{" "}
-            <span className="font-bold text-slate-800">
-              {(currentPage - 1) * pageSize + 1}
-            </span>{" "}
-            to{" "}
-            <span className="font-bold text-slate-800">
-              {Math.min(currentPage * pageSize, sortedData.length)}
-            </span>{" "}
-            of{" "}
-            <span className="font-bold text-slate-800">
-              {sortedData.length}
-            </span>{" "}
-            records
-          </span>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <span className="text-xs font-semibold text-slate-700 px-2 select-none">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
+      {!loading && sortedData.length > 0 && (
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/50">
+          <Pagination
+            page={Math.min(currentPage, totalPages)}
+            pageSize={pageSize}
+            totalItems={sortedData.length}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
     </div>

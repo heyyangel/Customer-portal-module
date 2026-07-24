@@ -1,4 +1,5 @@
 import User from '../../models/User.js';
+import ArchivedUser from '../../models/ArchivedUser.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 
@@ -6,33 +7,6 @@ const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
   });
-};
-
-export const register = async (req, res, next) => {
-  try {
-    const { name, email, password } = req.body;
-    const userExists = await User.findOne({ email });
-
-    if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists' });
-    }
-
-    const user = await User.create({ user: name, email, password });
-    const token = generateToken(user._id);
-
-    res.status(201).json({
-      success: true,
-      data: {
-        _id: user._id,
-        name: user.user,
-        email: user.email,
-        role: user.role,
-        token
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
 };
 
 export const login = async (req, res, next) => {
@@ -45,13 +19,32 @@ export const login = async (req, res, next) => {
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(401).json({ success: false, message: 'User is not registered. Please create an account.' });
+      // A suspended account is deleted from `users` and kept in the archive.
+      // Say so plainly rather than "not registered", which reads as a typo.
+      const archived = await ArchivedUser.findOne({ email: String(email).toLowerCase() });
+      if (archived) {
+        return res.status(403).json({
+          success: false,
+          message: 'Your account has been suspended. Please contact your administrator.',
+        });
+      }
+      return res.status(401).json({ success: false, message: 'User is not registered. Please contact your administrator.' });
     }
 
     // Support both legacy bcrypt hashes and new plaintext passwords
     const isMatch = (user.password === password) || (await bcrypt.compare(password, user.password).catch(() => false));
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+
+    // Inactive accounts are blocked here, before a token is ever issued — the
+    // protect middleware would reject them anyway, but only after the client
+    // had stored a useless token.
+    if (user.status !== 'Active') {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account is inactive. Please contact your administrator.',
+      });
     }
 
     const token = generateToken(user._id);

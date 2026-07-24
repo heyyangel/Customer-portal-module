@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2, PackagePlus } from "lucide-react";
 import toast from "react-hot-toast";
+import { Pagination } from "../ui/Pagination";
+import { usePagination } from "../../hooks/usePagination";
+
+const PAGE_SIZE = 10;
 
 // Qty cell with local edit state — commits on blur/Enter so a below-MOQ value
 // typed mid-keystroke isn't reverted by the controlled input.
@@ -57,6 +61,7 @@ const QtyCell = ({ item, enforceMoq, onUpdateQty }) => {
 
 export const OrderTable = ({ items, onUpdateQty, onRemoveItem, onBulkRemove, onRaiseIndent, enforceMoq = false }) => {
   const [selectedIds, setSelectedIds] = useState([]);
+  const { page, setPage, pageItems, total } = usePagination(items, PAGE_SIZE);
 
   // Selection is keyed by reservation _id (unique even when the same product
   // appears twice) and pruned against the current items so removed rows never
@@ -132,7 +137,7 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem, onBulkRemove, onR
                 </td>
               </tr>
             )}
-            {items.map((item) => {
+            {pageItems.map((item) => {
               return (
                 <motion.tr
                   key={item._id}
@@ -220,6 +225,12 @@ export const OrderTable = ({ items, onUpdateQty, onRemoveItem, onBulkRemove, onR
           </AnimatePresence>
         </tbody>
       </table>
+
+      {total > 0 && (
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={total} onPageChange={setPage} />
+        </div>
+      )}
     </div>
   );
 };

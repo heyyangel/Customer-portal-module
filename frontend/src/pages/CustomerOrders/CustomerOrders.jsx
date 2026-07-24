@@ -4,13 +4,17 @@ import { useForm } from "react-hook-form";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
 import { useShowMsilCode } from "../../hooks/useShowMsilCode";
+import { usePagination } from "../../hooks/usePagination";
 import toast from "react-hot-toast";
 
 import { OrderTable } from "../../components/tables/OrderTable";
 import { ProductSearchDropdown } from "../../components/ui";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
+import { Pagination } from "../../components/ui/Pagination";
 import { Package, Hash, Tag, MessageSquare, Receipt, ArrowRight, AlertTriangle, Clock, PackageCheck } from "lucide-react";
+
+const REVIEW_PAGE_SIZE = 10;
 
 const ValidityNotice = () => (
   <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
@@ -165,6 +169,10 @@ export const CustomerOrders = () => {
 
   const review = computeReview(cartItems);
   const indentLines = review.pending;
+
+  // Review Indent popup can list a whole bulk upload — page both breakdowns.
+  const availablePaging = usePagination(review.available, REVIEW_PAGE_SIZE);
+  const indentPaging = usePagination(indentLines, REVIEW_PAGE_SIZE);
 
   // "Raise Indent" from a Selection List row: opens the Review Indent popup so
   // the user can confirm the booking (the shortfall becomes a Pending Indent).
@@ -483,7 +491,7 @@ export const CustomerOrders = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {review.available.map((l) => (
+                    {availablePaging.pageItems.map((l) => (
                       <tr key={l.code}>
                         <td className="px-4 py-2.5 font-bold text-slate-800">{l.code}</td>
                         <td className="px-4 py-2.5 text-center text-slate-600">{l.requested}</td>
@@ -492,6 +500,14 @@ export const CustomerOrders = () => {
                     ))}
                   </tbody>
                 </table>
+                <div className="px-3 py-2.5 border-t border-slate-200 bg-slate-50/50">
+                  <Pagination
+                    page={availablePaging.page}
+                    pageSize={REVIEW_PAGE_SIZE}
+                    totalItems={availablePaging.total}
+                    onPageChange={availablePaging.setPage}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -512,7 +528,7 @@ export const CustomerOrders = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {indentLines.map((l) => (
+                  {indentPaging.pageItems.map((l) => (
                     <tr key={l.code}>
                       <td className="px-4 py-2.5 font-bold text-slate-800">{l.code}</td>
                       <td className="px-4 py-2.5 text-center text-slate-600">{l.requested}</td>
@@ -522,6 +538,14 @@ export const CustomerOrders = () => {
                   ))}
                 </tbody>
               </table>
+              <div className="px-3 py-2.5 border-t border-slate-200 bg-slate-50/50">
+                <Pagination
+                  page={indentPaging.page}
+                  pageSize={REVIEW_PAGE_SIZE}
+                  totalItems={indentPaging.total}
+                  onPageChange={indentPaging.setPage}
+                />
+              </div>
             </div>
           </div>
 

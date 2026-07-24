@@ -25,15 +25,19 @@ export const Backorders = () => {
     );
   };
 
+  // Rows are grouped indents, so paging counts groups — not the flat lines
+  // behind them — otherwise "showing 1-10" disagrees with the rows on screen.
+  const totalPages = Math.ceil(allGroups.length / PAGE_SIZE) || 1;
+  const currentPage = Math.min(page, totalPages);
+  const pageGroups = allGroups.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageItems = pageGroups.flatMap((g) => g.lines);
+
   const toggleSelectAll = () => {
     // Only toggling selection for the current page
-    const currentPageGroups = groupByIndent(
-      pendingItems.slice((page - 1) * PAGE_SIZE, Math.min(page, Math.ceil(pendingItems.length / PAGE_SIZE) || 1) * PAGE_SIZE)
-    );
-    const currentPageIds = currentPageGroups.map(g => g.indentNumber || g.primary._id);
-    
+    const currentPageIds = pageGroups.map(g => g.indentNumber || g.primary._id);
+
     const allSelectedOnPage = currentPageIds.every(id => selectedIds.includes(id));
-    
+
     if (allSelectedOnPage) {
       setSelectedIds(prev => prev.filter(id => !currentPageIds.includes(id)));
     } else {
@@ -116,10 +120,6 @@ export const Backorders = () => {
     pendingItems.map((i) => i.indentNumber || i._id),
   ).size;
 
-  const totalPages = Math.ceil(pendingItems.length / PAGE_SIZE) || 1;
-  const currentPage = Math.min(page, totalPages);
-  const pageItems = pendingItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -179,12 +179,12 @@ export const Backorders = () => {
           onExportRow={handleExportRow}
         />
 
-        {pendingItems.length > PAGE_SIZE && (
-          <div className="mt-4 border-t border-slate-100 pt-4">
+        {allGroups.length > 0 && (
+          <div className="mt-4 -mx-6 -mb-6 px-6 py-4 border-t border-slate-100 bg-slate-50/60">
             <Pagination
               page={currentPage}
               pageSize={PAGE_SIZE}
-              totalItems={pendingItems.length}
+              totalItems={allGroups.length}
               onPageChange={setPage}
             />
           </div>

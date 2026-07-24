@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { useOrderHistoryStore } from "../../store/orderHistoryStore";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
+import { Pagination } from "../ui/Pagination";
 
 export const OrderHistoryTable = () => {
   const {
@@ -27,8 +28,9 @@ export const OrderHistoryTable = () => {
 
   const isAdmin = useUserStore((s) => s.user?.role === "Admin");
 
-  const totalPages = Math.ceil(orders.length / limit);
-  const currentOrders = orders.slice((page - 1) * limit, page * limit);
+  const totalPages = Math.max(1, Math.ceil(orders.length / limit));
+  const currentPage = Math.min(page, totalPages);
+  const currentOrders = orders.slice((currentPage - 1) * limit, currentPage * limit);
   const allSelected =
     orders.length > 0 && orders.every((o) => selectedIds.includes(o.orderNumber));
 
@@ -94,7 +96,9 @@ export const OrderHistoryTable = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-x-auto w-full border border-slate-200 rounded-xl bg-white shadow-sm h-[600px]">
+      {/* max-h, not a fixed height: a short list shouldn't leave 600px of empty
+          box between the last row and the pagination bar. */}
+      <div className="overflow-auto w-full border border-slate-200 rounded-xl bg-white shadow-sm max-h-[600px]">
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead className="sticky top-0 bg-slate-50 z-10 shadow-sm">
             <tr className="text-xs text-slate-500 font-bold uppercase select-none">
@@ -219,30 +223,13 @@ export const OrderHistoryTable = () => {
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-slate-500 font-semibold">
-          Showing {orders.length === 0 ? 0 : (page - 1) * limit + 1} to{" "}
-          {Math.min(page * limit, orders.length)} of {orders.length} entries
-        </span>
-        <div className="flex items-center gap-1">
-          <button
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 font-semibold disabled:opacity-50 hover:bg-slate-50"
-          >
-            Prev
-          </button>
-          <span className="px-4 py-1.5 font-bold text-slate-800">
-            {page} / {totalPages || 1}
-          </span>
-          <button
-            disabled={page >= totalPages || totalPages === 0}
-            onClick={() => setPage(page + 1)}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-md text-slate-600 font-semibold disabled:opacity-50 hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
+      <div className="px-4 py-3 border border-slate-200 rounded-xl bg-white shadow-sm">
+        <Pagination
+          page={currentPage}
+          pageSize={limit}
+          totalItems={orders.length}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { PackageX, ArrowRightCircle, Loader2, Eye, FileSpreadsheet } from "lucide-react";
 import { Modal } from "../ui/Modal";
+import { Pagination } from "../ui/Pagination";
+import { usePagination } from "../../hooks/usePagination";
+
+const DETAIL_PAGE_SIZE = 10;
 
 // Groups flat pending-indent rows (one per SKU) that came from the same
 // booking confirmation (shared indentNumber) into a single entry, so multiple
@@ -52,6 +56,13 @@ export const BackordersTable = ({
   onExportRow,
 }) => {
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const detailPaging = usePagination(selectedGroup?.lines || [], DETAIL_PAGE_SIZE);
+
+  // Opening a different indent should always start at its first page.
+  const openGroup = (group) => {
+    detailPaging.setPage(1);
+    setSelectedGroup(group);
+  };
 
   if (!items || items.length === 0) {
     return (
@@ -136,7 +147,7 @@ export const BackordersTable = ({
                   <td className={`${pad} pr-4 text-center`}>
                     <div className="flex items-center justify-center gap-2">
                       <button
-                        onClick={() => setSelectedGroup(group)}
+                        onClick={() => openGroup(group)}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-700 bg-primary-50 border border-primary-200 px-3 py-1.5 rounded-lg hover:bg-primary-100 transition-all"
                         title="View pending indent details"
                       >
@@ -217,7 +228,7 @@ export const BackordersTable = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {selectedGroup.lines.map((line) => {
+                  {detailPaging.pageItems.map((line) => {
                     const inStock =
                       (line.product?.availableStock || 0) >= (line.pendingQuantity || 0);
                     const busy = restoringId === line._id;
@@ -268,6 +279,13 @@ export const BackordersTable = ({
                 </tbody>
               </table>
             </div>
+
+            <Pagination
+              page={detailPaging.page}
+              pageSize={DETAIL_PAGE_SIZE}
+              totalItems={detailPaging.total}
+              onPageChange={detailPaging.setPage}
+            />
           </div>
         )}
       </Modal>

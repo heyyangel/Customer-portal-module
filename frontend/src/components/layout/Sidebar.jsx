@@ -10,7 +10,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  LogOut,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { useUIStore } from "../../store/uiStore";
 import { useCartStore } from "../../store/cartStore";
 import { useUserStore } from "../../store/userStore";
@@ -19,8 +21,20 @@ export const Sidebar = () => {
   const { sidebarOpen, toggleSidebar } = useUIStore();
   const cartItems = useCartStore((state) => state.items);
 
-  const { user } = useUserStore();
+  const { user, logout } = useUserStore();
   const location = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Successfully logged out.");
+  };
+
+  // Admin is worth surfacing, but a separate chip crowds the card — fold it
+  // into the second line alongside the company.
+  const subtitle =
+    [user?.role === "Admin" ? "Admin" : null, user?.company || user?.email]
+      .filter(Boolean)
+      .join(" · ") || "System Account";
 
   const menuItems = [
     { name: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -111,18 +125,54 @@ export const Sidebar = () => {
         )})}
       </nav>
 
-      {sidebarOpen && (
-        <div className="p-4 border-t border-white/10 flex flex-col gap-1 text-center">
-          <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">
-            Powered by
-            <br />
-            D-table Analytics
-          </span>
-          <span className="text-[11px] text-primary-300/70 font-medium">
-            © 2026
-          </span>
+      {/* Signed-in user. Collapses to avatar + sign-out when the rail is narrow.
+          The card is a plain div, not a link, so the sign-out button isn't
+          nested inside an anchor. */}
+      <div className="p-3 border-t border-white/10">
+        <div
+          className={`flex items-center rounded-lg border border-white/10 bg-white/5 ${
+            sidebarOpen ? "gap-2 p-2.5" : "flex-col gap-2 p-2"
+          }`}
+        >
+          <NavLink
+            to="/settings"
+            title={sidebarOpen ? "View your profile" : user?.user || user?.name || "Profile"}
+            className="flex items-center gap-3 min-w-0 flex-1 rounded-md hover:opacity-80 transition-opacity"
+          >
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt=""
+                className="w-9 h-9 rounded-full object-cover border border-white/20 shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                {(user?.user || user?.name || "US").slice(0, 2).toUpperCase()}
+              </div>
+            )}
+
+            {sidebarOpen && (
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate leading-tight">
+                  {user?.user || user?.name || "Loading..."}
+                </p>
+                <p className="text-[11px] text-primary-200/80 font-medium truncate">
+                  {subtitle}
+                </p>
+              </div>
+            )}
+          </NavLink>
+
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            aria-label="Sign out"
+            className="p-1.5 rounded-md text-primary-200 hover:text-white hover:bg-red-500/80 transition-colors shrink-0 focus:outline-none"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
-      )}
+      </div>
     </aside>
   );
 };

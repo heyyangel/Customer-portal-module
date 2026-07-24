@@ -33,7 +33,7 @@ export const useOrderHistoryStore = create((set, get) => ({
   sortBy: "date",
   sortOrder: "desc",
   page: 1,
-  limit: 15,
+  limit: 10,
   selectedOrder: null,
   selectedIds: [], // booking orderNumbers selected for export
   metrics: {

@@ -213,21 +213,35 @@ router.get('/dashboard/stats', protect, async (req, res, next) => {
       orderQuery.user = req.user._id;
     }
 
-    // Product counts across all brands
-    const [kokenCount, bixCount, imadaCount] = await Promise.all([
-      ProductKoken.countDocuments(),
-      ProductBIX.countDocuments(),
-      ProductIMADA.countDocuments(),
-    ]);
-    const totalProducts = kokenCount + bixCount + imadaCount;
+    const isMsilCustomer =
+      req.user?.role !== 'Admin' && req.user?.customerCategory === 'MSIL';
 
-    // Low-stock products (availableForSale <= 0)
-    const [kokenLow, bixLow, imadaLow] = await Promise.all([
-      ProductKoken.countDocuments({ availableForSale: { $lte: 0 } }),
-      ProductBIX.countDocuments({ availableForSale: { $lte: 0 } }),
-      ProductIMADA.countDocuments({ availableForSale: { $lte: 0 } }),
-    ]);
-    const lowStockAlerts = kokenLow + bixLow + imadaLow;
+    let allowedModels = [];
+    if (req.user?.role === 'Admin') {
+      allowedModels = [
+        ProductKoken,
+        ProductBIX,
+        ProductIMADA,
+      ];
+    } else {
+      if (req.user?.brandAccess?.koken) allowedModels.push(ProductKoken);
+      if (req.user?.brandAccess?.bix)   allowedModels.push(ProductBIX);
+      if (req.user?.brandAccess?.imada && !isMsilCustomer) allowedModels.push(ProductIMADA);
+    }
+
+    // Product counts and low-stock queries across allowed brands only
+    const counts = await Promise.all(
+      allowedModels.map(async (model) => {
+        const [total, low] = await Promise.all([
+          model.countDocuments(),
+          model.countDocuments({ availableForSale: { $lte: 0 } }),
+        ]);
+        return { total, low };
+      })
+    );
+
+    const totalProducts = counts.reduce((sum, c) => sum + c.total, 0);
+    const lowStockAlerts = counts.reduce((sum, c) => sum + c.low, 0);
 
     // Booking status breakdown. "In process" = PO Received + Ready for Dispatch
     // (plus legacy 'Booked' records).

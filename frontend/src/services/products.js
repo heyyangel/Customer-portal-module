@@ -55,9 +55,11 @@ export const productsApi = {
   // are resolved server-side, so they cover the whole catalogue rather than a
   // downloaded subset. `total` is the search-filtered count (drives paging);
   // `catalogueTotal` / `lowStockCount` describe the catalogue as a whole.
-  getInventory: async ({ search = '', sort = 'name-asc', page = 1, limit = 12 } = {}) => {
+  getInventory: async ({ search = '', sort = 'name-asc', page = 1, limit = 12, brand = '', category = '' } = {}) => {
     const params = new URLSearchParams({ sort, page: String(page), limit: String(limit) });
     if (search) params.set('search', search);
+    if (brand) params.set('brand', brand);
+    if (category) params.set('category', category);
     const response = await api.get(`/products?${params.toString()}`);
     const { data, pagination, totals } = response.data;
     return {
@@ -73,9 +75,11 @@ export const productsApi = {
 
   // Whole filtered catalogue in one request, for the Inventory download.
   // Honours the same search, sort and per-user brand rules as getInventory.
-  getInventoryExport: async ({ search = '', sort = 'name-asc' } = {}) => {
+  getInventoryExport: async ({ search = '', sort = 'name-asc', brand = '', category = '' } = {}) => {
     const params = new URLSearchParams({ sort, all: 'true' });
     if (search) params.set('search', search);
+    if (brand) params.set('brand', brand);
+    if (category) params.set('category', category);
     const response = await api.get(`/products?${params.toString()}`);
     return (response.data.data || []).map((p) => ({ ...mapProduct(p), brand: p.brand }));
   },
@@ -88,5 +92,10 @@ export const productsApi = {
       if (error.response?.status === 404) return null;
       throw error;
     }
+  },
+
+  getCategories: async () => {
+    const response = await api.get('/products/categories');
+    return response.data.data || [];
   },
 };

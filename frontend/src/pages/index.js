@@ -5,7 +5,6 @@ export { BulkUpload } from "./BulkUpload/BulkUpload";
 export { Admin } from "./Admin/Admin";
 export { AuthLayout } from "./Auth/AuthLayout";
 export { Login } from "./Auth/Login";
-export { Register } from "./Auth/Register";
 export { Inventory } from "./Inventory/Inventory";
 export { Reports } from "./Reports/Reports";
 export { Settings } from "./Settings/Settings";

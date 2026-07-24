@@ -5,12 +5,23 @@ import { useUserStore } from '../../../store/userStore';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Modal } from '../../../components/ui/Modal';
+import { ConfirmationDialog } from '../../../components/ui/ConfirmationDialog';
+import { Pagination } from '../../../components/ui/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { UserPlus, Shield, Mail, Loader2, Search, X, Pencil, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+const PAGE_SIZE = 10;
 
 const CATEGORY_STYLES = {
   MSIL: 'bg-primary-50 text-primary-700 border-primary-200',
   'Non-MSIL': 'bg-amber-50 text-amber-700 border-amber-200',
+};
+
+const STATUS_STYLES = {
+  Active: 'bg-success-50 text-success-700',
+  Inactive: 'bg-slate-100 text-slate-600',
+  Suspended: 'bg-red-50 text-red-700',
 };
 
 const emptyForm = {
@@ -21,6 +32,11 @@ const emptyForm = {
   role: 'Customer',
   customerCategory: 'Non-MSIL',
   status: 'Active',
+  brandAccess: {
+    koken: true,
+    bix: true,
+    imada: true,
+  },
 };
 
 // A single "access level" maps onto the underlying role + customerCategory fields.
@@ -43,6 +59,7 @@ export const UserManagement = () => {
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [confirmSuspend, setConfirmSuspend] = useState(false);
   const [pwUser, setPwUser] = useState(null);
   const [newPw, setNewPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
@@ -57,9 +74,16 @@ export const UserManagement = () => {
       )
     : users;
 
+  const { page, setPage, pageItems: visibleUsers, total } = usePagination(filteredUsers, PAGE_SIZE);
+
   useEffect(() => {
     if (isAdmin) fetchUsers();
   }, [fetchUsers, isAdmin]);
+
+  // A new search gives a different result set — start it from the first page.
+  useEffect(() => {
+    setPage(1);
+  }, [q, setPage]);
 
   // User management (incl. customer category) is admin only.
   if (user && !isAdmin) {
@@ -77,12 +101,14 @@ export const UserManagement = () => {
       email: u.email || '',
       status: u.status || 'Active',
       accessLevel: accessLevelOf(u),
+      brandAccess: u.brandAccess || { koken: true, bix: true, imada: true },
     });
   };
 
   const closeEdit = () => {
     setEditUser(null);
     setEditForm(null);
+    setConfirmSuspend(false);
   };
 
   const handleEditSave = async (e) => {
@@ -91,6 +117,15 @@ export const UserManagement = () => {
       toast.error('Email is required');
       return;
     }
+    // Suspending deletes the account from the users collection — confirm first.
+    if (editForm.status === 'Suspended' && editUser.status !== 'Suspended') {
+      setConfirmSuspend(true);
+      return;
+    }
+    await saveEdit();
+  };
+
+  const saveEdit = async () => {
     setSavingEdit(true);
     const { accessLevel, ...details } = editForm;
     const res = await updateUser(editUser._id, {
@@ -98,8 +133,16 @@ export const UserManagement = () => {
       ...accessLevelToFields(accessLevel),
     });
     setSavingEdit(false);
+    setConfirmSuspend(false);
     if (res.success) {
-      toast.success('User updated');
+      const restored = editUser.archived && editForm.status !== 'Suspended';
+      toast.success(
+        editForm.status === 'Suspended'
+          ? 'Account suspended and removed from the database'
+          : restored
+            ? 'Account restored to the database'
+            : 'User updated',
+      );
       closeEdit();
     } else {
       toast.error(res.error || 'Failed to update user');
@@ -197,6 +240,7 @@ export const UserManagement = () => {
                   <th className="px-6 py-4 font-bold text-slate-600">User</th>
                   <th className="px-6 py-4 font-bold text-slate-600">Role</th>
                   <th className="px-6 py-4 font-bold text-slate-600">Customer Category</th>
+                  <th className="px-6 py-4 font-bold text-slate-600">Brand Access</th>
                   <th className="px-6 py-4 font-bold text-slate-600">Status</th>
                   <th className="px-6 py-4 font-bold text-slate-600 text-right">Actions</th>
                 </tr>
@@ -204,18 +248,18 @@ export const UserManagement = () => {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                       <Loader2 className="animate-spin inline-block mr-2" size={24} /> Loading users...
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
                       {q ? `No users match "${search}".` : 'No users found.'}
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((u) => {
+                  visibleUsers.map((u) => {
                     const displayName = u.user || u.company || u.email;
                     const isCustomer = u.role !== 'Admin';
                     return (
@@ -241,7 +285,9 @@ export const UserManagement = () => {
                             <select
                               value={u.customerCategory || 'Non-MSIL'}
                               onChange={(e) => handleCategoryChange(u._id, e.target.value)}
-                              className={`text-xs font-bold rounded-md border px-2.5 py-1.5 outline-none cursor-pointer focus:ring-2 focus:ring-primary-500/20 ${CATEGORY_STYLES[u.customerCategory || 'Non-MSIL']}`}
+                              disabled={u.archived}
+                              title={u.archived ? 'Restore the account to Active to edit it' : undefined}
+                              className={`text-xs font-bold rounded-md border px-2.5 py-1.5 outline-none cursor-pointer focus:ring-2 focus:ring-primary-500/20 disabled:opacity-50 disabled:cursor-not-allowed ${CATEGORY_STYLES[u.customerCategory || 'Non-MSIL']}`}
                             >
                               <option value="MSIL">MSIL</option>
                               <option value="Non-MSIL">Non-MSIL</option>
@@ -251,9 +297,32 @@ export const UserManagement = () => {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-2 py-1 text-xs font-bold rounded-full ${u.status === 'Active' ? 'bg-success-50 text-success-700' : 'bg-slate-100 text-slate-600'}`}>
-                            {u.status || 'Active'}
-                          </span>
+                          <div className="flex gap-1.5 flex-wrap max-w-[150px]">
+                            {u.brandAccess?.koken && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 rounded">Koken</span>
+                            )}
+                            {u.brandAccess?.bix && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 rounded">BIX</span>
+                            )}
+                            {u.brandAccess?.imada && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 rounded text-nowrap">IMADA</span>
+                            )}
+                            {(!u.brandAccess || (!u.brandAccess.koken && !u.brandAccess.bix && !u.brandAccess.imada)) && (
+                              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 rounded">None</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col items-start gap-1">
+                            <span className={`px-2 py-1 text-xs font-bold rounded-full ${STATUS_STYLES[u.status] || STATUS_STYLES.Inactive}`}>
+                              {u.status || 'Active'}
+                            </span>
+                            {u.archived && (
+                              <span className="text-[10px] font-semibold text-slate-400" title="Removed from the users collection; restored when set back to Active">
+                                Archived — not in database
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -274,6 +343,17 @@ export const UserManagement = () => {
               </tbody>
             </table>
           </div>
+
+          {!loading && total > 0 && (
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/60 rounded-b-xl">
+              <Pagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                totalItems={total}
+                onPageChange={setPage}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -312,14 +392,47 @@ export const UserManagement = () => {
                 <option value="MSIL">MSIL</option>
               </select>
             </Field>
-            <Field label="Status">
-              <select value={form.status} onChange={setField('status')} className={inputCls}>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
-              </select>
-            </Field>
-          </div>
+             <Field label="Status">
+               <select value={form.status} onChange={setField('status')} className={inputCls}>
+                 <option value="Active">Active</option>
+                 <option value="Inactive">Inactive</option>
+                 <option value="Suspended">Suspended</option>
+               </select>
+             </Field>
+           </div>
+ 
+           <div className="flex flex-col gap-2 mt-1">
+             <span className="text-xs font-bold text-slate-600">Brand Access</span>
+             <div className="flex gap-4">
+               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                 <input
+                   type="checkbox"
+                   checked={form.brandAccess?.koken}
+                   onChange={(e) => setForm(f => ({ ...f, brandAccess: { ...f.brandAccess, koken: e.target.checked } }))}
+                   className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                 />
+                 Koken
+               </label>
+               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                 <input
+                   type="checkbox"
+                   checked={form.brandAccess?.bix}
+                   onChange={(e) => setForm(f => ({ ...f, brandAccess: { ...f.brandAccess, bix: e.target.checked } }))}
+                   className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                 />
+                 BIX
+               </label>
+               <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                 <input
+                   type="checkbox"
+                   checked={form.brandAccess?.imada}
+                   onChange={(e) => setForm(f => ({ ...f, brandAccess: { ...f.brandAccess, imada: e.target.checked } }))}
+                   className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                 />
+                 IMADA
+               </label>
+             </div>
+           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -353,14 +466,67 @@ export const UserManagement = () => {
                   ))}
                 </select>
               </Field>
-              <Field label="Status">
-                <select value={editForm.status} onChange={setEditField('status')} className={inputCls}>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Suspended">Suspended</option>
-                </select>
-              </Field>
-            </div>
+               <Field label="Status">
+                 <select value={editForm.status} onChange={setEditField('status')} className={inputCls}>
+                   <option value="Active">Active</option>
+                   <option value="Inactive">Inactive</option>
+                   <option value="Suspended">Suspended</option>
+                 </select>
+               </Field>
+             </div>
+
+            {/* What each status actually does, stated where the choice is made. */}
+            {editForm.status === 'Suspended' && (
+              <p className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                Suspending deletes this account from the users database. Its bookings and indents
+                are kept, and setting the status back to Active recreates the account exactly as it
+                was.
+              </p>
+            )}
+            {editForm.status === 'Inactive' && (
+              <p className="text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                An inactive account stays in the database but cannot sign in.
+              </p>
+            )}
+            {editUser?.archived && editForm.status !== 'Suspended' && (
+              <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                Saving restores this account to the database with its original ID, so its history
+                reattaches.
+              </p>
+            )}
+ 
+             <div className="flex flex-col gap-2 mt-1">
+               <span className="text-xs font-bold text-slate-600">Brand Access</span>
+               <div className="flex gap-4">
+                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                   <input
+                     type="checkbox"
+                     checked={editForm.brandAccess?.koken}
+                     onChange={(e) => setEditForm(f => ({ ...f, brandAccess: { ...f.brandAccess, koken: e.target.checked } }))}
+                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                   />
+                   Koken
+                 </label>
+                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                   <input
+                     type="checkbox"
+                     checked={editForm.brandAccess?.bix}
+                     onChange={(e) => setEditForm(f => ({ ...f, brandAccess: { ...f.brandAccess, bix: e.target.checked } }))}
+                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                   />
+                   BIX
+                 </label>
+                 <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                   <input
+                     type="checkbox"
+                     checked={editForm.brandAccess?.imada}
+                     onChange={(e) => setEditForm(f => ({ ...f, brandAccess: { ...f.brandAccess, imada: e.target.checked } }))}
+                     className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                   />
+                   IMADA
+                 </label>
+               </div>
+             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 mt-2">
               <Button type="button" variant="outline" size="sm" onClick={closeEdit}>Cancel</Button>
@@ -371,6 +537,17 @@ export const UserManagement = () => {
           </form>
         )}
       </Modal>
+
+      <ConfirmationDialog
+        isOpen={confirmSuspend}
+        onClose={() => setConfirmSuspend(false)}
+        onConfirm={saveEdit}
+        loading={savingEdit}
+        title="Suspend this account?"
+        confirmText="Suspend & remove"
+        variant="danger"
+        description={`${editUser?.user || editUser?.company || editUser?.email} will be deleted from the users database and will not be able to sign in. Their bookings and indents are kept, and setting the account back to Active recreates it exactly as it was.`}
+      />
 
       {/* Reset Password modal */}
       <Modal isOpen={!!pwUser} onClose={() => setPwUser(null)} title="Reset Password" size="sm">

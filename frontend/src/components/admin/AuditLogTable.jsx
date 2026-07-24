@@ -1,6 +1,12 @@
 import { Clock, User } from 'lucide-react';
+import { Pagination } from '../ui/Pagination';
+import { usePagination } from '../../hooks/usePagination';
+
+const PAGE_SIZE = 10;
 
 export const AuditLogTable = ({ logs }) => {
+  const { page, setPage, pageItems, total } = usePagination(logs, PAGE_SIZE);
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden mt-4">
       <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
@@ -22,7 +28,7 @@ export const AuditLogTable = ({ logs }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {logs.map((log) => (
+            {pageItems.map((log) => (
               <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-4 py-3 font-semibold text-slate-900">{log.action}</td>
                 <td className="px-4 py-3">
@@ -54,6 +60,12 @@ export const AuditLogTable = ({ logs }) => {
           </tbody>
         </table>
       </div>
+
+      {total > 0 && (
+        <div className="px-4 py-3 border-t border-slate-200">
+          <Pagination page={page} pageSize={PAGE_SIZE} totalItems={total} onPageChange={setPage} />
+        </div>
+      )}
     </div>
   );
 };

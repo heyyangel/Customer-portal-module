@@ -68,15 +68,6 @@ export const Login = () => {
           <Button type="submit" variant="primary" className="w-full bg-red-600 hover:bg-red-700 border-red-600" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </Button>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => navigate('/register')}
-          >
-            Create an Account
-          </Button>
         </div>
       </form>
     </div>

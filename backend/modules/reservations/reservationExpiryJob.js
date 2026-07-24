@@ -24,11 +24,116 @@ const sendSystemNotification = (userId, title, message) => {
   notifyUser(userId, { title, message, type: 'reservation' });
 };
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+const formatDate = (date) =>
+  new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+// One row per reservation line, so a customer with ten pending items sees them
+// all in a single mail instead of receiving ten near-identical ones.
+const itemsTable = (items, { showExpiry }) => `
+  <table style="border-collapse: collapse; margin: 12px 0; font-size: 13px;">
+    <tr style="background: #f5f5f5;">
+      <th align="left" style="padding: 6px 12px; border: 1px solid #e5e5e5;">Reservation</th>
+      <th align="left" style="padding: 6px 12px; border: 1px solid #e5e5e5;">SKU Code</th>
+      <th align="right" style="padding: 6px 12px; border: 1px solid #e5e5e5;">Qty</th>
+      ${showExpiry ? '<th align="left" style="padding: 6px 12px; border: 1px solid #e5e5e5;">Expires</th>' : ''}
+    </tr>
+    ${items
+      .map(
+        (r) => `
+    <tr>
+      <td style="padding: 6px 12px; border: 1px solid #e5e5e5;">${r.reservationId}</td>
+      <td style="padding: 6px 12px; border: 1px solid #e5e5e5; font-weight: bold;">${r.skuCode}</td>
+      <td align="right" style="padding: 6px 12px; border: 1px solid #e5e5e5;">${r.quantity}</td>
+      ${showExpiry ? `<td style="padding: 6px 12px; border: 1px solid #e5e5e5;">${formatDate(r.expiryDate)}</td>` : ''}
+    </tr>`,
+      )
+      .join('')}
+  </table>`;
+
+// Each stage sends at most one mail + one in-app notification per customer,
+// covering every reservation line that reached that stage today.
+const STAGES = {
+  expired: {
+    action: 'Reservation Expired',
+    notificationTitle: 'Booking Auto-Cancelled',
+    notification: (items) =>
+      `${plural(items.length, 'item')} in your selection list ${items.length === 1 ? 'was' : 'were'} removed after 7 days without confirmation.`,
+    subject: (items) => (items.length === 1 ? 'Booking Auto-Cancelled' : 'Bookings Auto-Cancelled'),
+    showExpiry: false,
+    intro: (items) =>
+      `${items.length === 1 ? 'The following item was' : `The following ${plural(items.length, 'item')} were`}
+       automatically cancelled and removed from your selection list because
+       ${items.length === 1 ? 'it was' : 'they were'} not confirmed within 7 days.`,
+    outro: () => 'You can re-add anything you still need to a new booking at any time.',
+  },
+  finalReminder: {
+    action: 'Final Reminder Sent',
+    notificationTitle: 'Booking Expiring Soon',
+    notification: (items) =>
+      `Final reminder: confirm ${plural(items.length, 'item')} in your selection list before ${items.length === 1 ? 'it is' : 'they are'} auto-cancelled.`,
+    subject: () => 'Final Reminder — Booking Expires Tomorrow',
+    showExpiry: true,
+    intro: (items) =>
+      `This is the final reminder to confirm ${items.length === 1 ? 'your booking' : `these ${plural(items.length, 'item')}`}:`,
+    outro: (items) =>
+      `${items.length === 1 ? 'It is' : 'They are'} still in your selection list and will be
+       <b>automatically cancelled</b> if not confirmed. Please confirm before then to place your booking.`,
+  },
+  firstReminder: {
+    action: 'Reminder Sent (Day 5)',
+    notificationTitle: 'Booking Awaiting Confirmation',
+    notification: (items) =>
+      `${plural(items.length, 'item')} in your selection list ${items.length === 1 ? 'is' : 'are'} still awaiting confirmation.`,
+    subject: () => 'Reminder — Booking Awaiting Confirmation',
+    showExpiry: true,
+    intro: (items) =>
+      `You have ${plural(items.length, 'item')} still in your selection list that ${items.length === 1 ? 'has' : 'have'} not been confirmed:`,
+    outro: () =>
+      'Please confirm soon — un-confirmed bookings are automatically cancelled after 7 days.',
+  },
+};
+
+const notifyStage = async (stageKey, customer, items) => {
+  const stage = STAGES[stageKey];
+  const name = customer.user || customer.company || 'there';
+
+  await logSystemEvent(
+    stage.action,
+    `${plural(items.length, 'reservation')} for ${customer.email || customer._id}: ${items.map((r) => r.reservationId).join(', ')}`,
+  );
+
+  sendSystemNotification(customer._id, stage.notificationTitle, stage.notification(items));
+
+  if (!customer.email) return;
+
+  await sendEmail(
+    customer.email,
+    stage.subject(items),
+    `<p>Hi ${name},</p>
+     <p>${stage.intro(items)}</p>
+     ${itemsTable(items, { showExpiry: stage.showExpiry })}
+     <p>${stage.outro(items)}</p>`,
+  );
+};
+
 export const runReservationExpiryChecks = async () => {
   console.log('[Job] Starting Daily Reservation Lifecycle checks...');
   try {
     const now = new Date();
     const activeReservations = await Reservation.find({ status: 'Reserved' }).populate('customerId');
+
+    // Collect each customer's due lines first, then send one mail per stage —
+    // otherwise a ten-item selection list produces ten identical day-5 emails.
+    const byCustomer = new Map();
+    const bucketFor = (customer) => {
+      const key = String(customer._id);
+      if (!byCustomer.has(key)) {
+        byCustomer.set(key, { customer, expired: [], finalReminder: [], firstReminder: [] });
+      }
+      return byCustomer.get(key);
+    };
 
     for (let reservation of activeReservations) {
       const customer = reservation.customerId;
@@ -46,20 +151,9 @@ export const runReservationExpiryChecks = async () => {
         reservation.expiredAt = now;
         await reservation.save();
 
-        await logSystemEvent('Reservation Expired', `Reservation ${reservation.reservationId} for ${reservation.skuCode} auto-cancelled after 7 days (not confirmed).`);
-        sendSystemNotification(customer._id, 'Booking Auto-Cancelled', `Your booking ${reservation.reservationId} (${reservation.skuCode}) was removed from your selection list after 7 days without confirmation.`);
-
-        await sendEmail(
-          customer.email,
-          'Booking Auto-Cancelled',
-          `Your booking <b>${reservation.reservationId}</b> for <b>${reservation.skuCode}</b> (${reservation.quantity} units) was
-           automatically cancelled and removed from your selection list because it was not confirmed within 7 days.<br/><br/>
-           You can add the item to a new booking at any time.`
-        );
+        bucketFor(customer).expired.push(reservation);
         continue;
       }
-
-      const itemLine = `<b>${reservation.reservationId}</b> — <b>${reservation.skuCode}</b> (${reservation.quantity} units)`;
 
       // 2. Final reminder — fires the day before the 7-day auto-cancel so it always
       //    lands before the item is dropped (daily cron + 7-day expiry window).
@@ -67,17 +161,7 @@ export const runReservationExpiryChecks = async () => {
         reservation.lastReminderSent = 'day7';
         await reservation.save();
 
-        await logSystemEvent('Final Reminder Sent', `Sent final reminder for reservation ${reservation.reservationId}`);
-        sendSystemNotification(customer._id, 'Booking Expiring Soon', `Final reminder: confirm booking ${reservation.reservationId} (${reservation.skuCode}) before it is auto-cancelled.`);
-
-        await sendEmail(
-          customer.email,
-          'Final Reminder — Booking Expires Tomorrow',
-          `This is the final reminder to confirm your booking:<br/><br/>
-           ${itemLine}<br/><br/>
-           It is still in your selection list and will be <b>automatically cancelled</b> if not confirmed.
-           Please confirm it before then to place your booking.`
-        );
+        bucketFor(customer).finalReminder.push(reservation);
         continue;
       }
 
@@ -86,18 +170,18 @@ export const runReservationExpiryChecks = async () => {
         reservation.lastReminderSent = 'day5';
         await reservation.save();
 
-        await logSystemEvent('Reminder Sent (Day 5)', `Sent day 5 reminder for reservation ${reservation.reservationId}`);
-        sendSystemNotification(customer._id, 'Booking Awaiting Confirmation', `Booking ${reservation.reservationId} (${reservation.skuCode}) is still in your selection list.`);
-
-        await sendEmail(
-          customer.email,
-          'Reminder — Booking Awaiting Confirmation',
-          `You have a booking still in your selection list that has not been confirmed:<br/><br/>
-           ${itemLine}<br/><br/>
-           Please confirm it soon — un-confirmed bookings are automatically cancelled after 7 days.`
-        );
+        bucketFor(customer).firstReminder.push(reservation);
       }
     }
+
+    for (const { customer, expired, finalReminder, firstReminder } of byCustomer.values()) {
+      // A customer can legitimately hit more than one stage on the same run —
+      // e.g. one line expiring while another is only on day 5.
+      if (expired.length) await notifyStage('expired', customer, expired);
+      if (finalReminder.length) await notifyStage('finalReminder', customer, finalReminder);
+      if (firstReminder.length) await notifyStage('firstReminder', customer, firstReminder);
+    }
+
     console.log('[Job] Completed Daily Reservation Lifecycle checks.');
   } catch (error) {
     console.error('[Job Error] Failed to run reservation checks:', error);

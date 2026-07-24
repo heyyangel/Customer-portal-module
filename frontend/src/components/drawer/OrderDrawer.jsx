@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
+const PAGE_SIZE = 10;
+
 // Admin-managed booking lifecycle. Each stage advances to the next.
 const STAGES = ["PO Received", "Ready for Dispatch", "Dispatched", "Delivered"];
 // Map a legacy 'Booked' status onto the first stage for display/progression.
@@ -29,6 +31,8 @@ import { OrderTimeline } from "../cards/OrderTimeline";
 import { OrderSummaryCard } from "../cards/OrderSummaryCard";
 import { useCanViewPrice } from "../../hooks/useCanViewPrice";
 import { useShowMsilCode } from "../../hooks/useShowMsilCode";
+import { usePagination } from "../../hooks/usePagination";
+import { Pagination } from "../ui/Pagination";
 import { PackageX } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -63,12 +67,19 @@ export const OrderDrawer = () => {
     if (selectedOrder) fetchPendingReservations();
   }, [selectedOrder?.orderNumber, fetchPendingReservations]);
 
-  if (!selectedOrder) return null;
+  // Derived before the early return so the paging hooks below always run.
+  const targetIndent = selectedOrder
+    ? selectedOrder.orderNumber.replace(/^SO-|^BO-/, 'PI-')
+    : null;
+  const bookingIndents = targetIndent
+    ? pendingItems.filter((p) => p.indentNumber === targetIndent)
+    : [];
+  const lineItems = Array.isArray(selectedOrder?.items) ? selectedOrder.items : [];
 
-  const targetIndent = selectedOrder.orderNumber.replace(/^SO-|^BO-/, 'PI-');
-  const bookingIndents = pendingItems.filter(
-    (p) => p.indentNumber === targetIndent,
-  );
+  const linePaging = usePagination(lineItems, PAGE_SIZE);
+  const indentPaging = usePagination(bookingIndents, PAGE_SIZE);
+
+  if (!selectedOrder) return null;
 
   const applyStatus = async (newStatus) => {
     if (busy || newStatus === selectedOrder.status) return;
@@ -276,7 +287,7 @@ export const OrderDrawer = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-sm">
-                        {selectedOrder.items.map((item, idx) => (
+                        {linePaging.pageItems.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50">
                             <td className="px-5 py-4">
                               <div className="flex flex-col">
@@ -317,6 +328,16 @@ export const OrderDrawer = () => {
                       </tbody>
                     </table>
                   </div>
+                  {linePaging.total > 0 && (
+                    <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
+                      <Pagination
+                        page={linePaging.page}
+                        pageSize={PAGE_SIZE}
+                        totalItems={linePaging.total}
+                        onPageChange={linePaging.setPage}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Pending Indents tied to this booking (matched by PO number) */}
@@ -339,7 +360,7 @@ export const OrderDrawer = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm">
-                          {bookingIndents.map((p) => (
+                          {indentPaging.pageItems.map((p) => (
                             <tr key={p._id} className="hover:bg-slate-50">
                               <td className="px-5 py-3 font-bold text-slate-800">{p.product.code}</td>
                               {showMsilCode && (
@@ -355,6 +376,14 @@ export const OrderDrawer = () => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                    <div className="px-5 py-3 border-t border-amber-100 bg-amber-50/30">
+                      <Pagination
+                        page={indentPaging.page}
+                        pageSize={PAGE_SIZE}
+                        totalItems={indentPaging.total}
+                        onPageChange={indentPaging.setPage}
+                      />
                     </div>
                   </div>
                 )}

@@ -21,12 +21,24 @@ const SORT_SPECS = {
 // A SKU is low stock below twice its MOQ, falling back to 10 when no MOQ is
 // set. Mirrors the per-row badge threshold on the Inventory page.
 const LOW_STOCK_MATCH = {
-  $expr: {
-    $lt: [
-      '$availableForSale',
-      { $cond: [{ $gt: ['$moq', 0] }, { $multiply: ['$moq', 2] }, 10] },
-    ],
-  },
+  $or: [
+    {
+      moq: { $gt: 0 },
+      $expr: {
+        $lt: [
+          '$availableForSale',
+          { $multiply: ['$moq', 2] }
+        ]
+      }
+    },
+    {
+      $or: [
+        { moq: { $lte: 0 } },
+        { moq: { $exists: false } }
+      ],
+      availableForSale: { $lt: 10 }
+    }
+  ]
 };
 
 // GET /api/v1/products?search=&sort=&page=&limit=
@@ -35,7 +47,7 @@ const LOW_STOCK_MATCH = {
 // rather than whatever subset the client happened to download.
 export const getInventory = async (req, res, next) => {
   try {
-    const { search, sort = 'name-asc' } = req.query;
+    const { search, sort = 'name-asc', brand, category } = req.query;
     const limit = Math.min(Math.max(Number(req.query.limit) || 12, 1), 200);
     const page = Math.max(Number(req.query.page) || 1, 1);
     const skip = (page - 1) * limit;
@@ -63,17 +75,33 @@ export const getInventory = async (req, res, next) => {
       query.$or = [{ skuCode: { $regex: search, $options: 'i' } }];
       if (msilApplies) query.$or.push({ msilCode: { $regex: search, $options: 'i' } });
     }
+    if (category) {
+      query.category = category;
+    }
 
     // MSIL customers do not carry the IMADA brand, so it is excluded from their
     // Inventory entirely — rows, counts and low-stock all follow from this list.
-    // Admins always see every brand.
+    // Admins always see every brand. Customers only see brands they have brandAccess to.
     const isMsilCustomer =
       req.user?.role !== 'Admin' && req.user?.customerCategory === 'MSIL';
-    const models = [
-      [ProductKoken, 'KOKEN'],
-      [ProductBIX, 'BIX'],
-      ...(isMsilCustomer ? [] : [[ProductIMADA, 'IMADA']]),
-    ];
+    
+    let models = [];
+    if (req.user?.role === 'Admin') {
+      models = [
+        [ProductKoken, 'KOKEN'],
+        [ProductBIX, 'BIX'],
+        [ProductIMADA, 'IMADA'],
+      ];
+    } else {
+      if (req.user?.brandAccess?.koken) models.push([ProductKoken, 'KOKEN']);
+      if (req.user?.brandAccess?.bix)   models.push([ProductBIX, 'BIX']);
+      if (req.user?.brandAccess?.imada && !isMsilCustomer) models.push([ProductIMADA, 'IMADA']);
+    }
+
+    // Filter by brand parameter if supplied
+    if (brand) {
+      models = models.filter(([_, brandName]) => brandName.toLowerCase() === brand.toLowerCase());
+    }
 
     // Global ordering across the brand collections: take the first fetchLimit
     // of each, merge, re-sort, then slice the requested page out of the merge.
@@ -132,6 +160,14 @@ export const getProducts = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Unknown brand: ${brand}` });
     }
 
+    if (req.user?.role !== 'Admin') {
+      const allowed = req.user?.brandAccess?.[brand.toLowerCase()];
+      const isMsilCustomer = req.user?.customerCategory === 'MSIL';
+      if (!allowed || (brand.toLowerCase() === 'imada' && isMsilCustomer)) {
+        return res.status(403).json({ success: false, message: 'Access to this brand is restricted for your account.' });
+      }
+    }
+
     const query = {};
     if (search) {
       query.$or = [
@@ -166,6 +202,14 @@ export const getProductByCode = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `Unknown brand: ${brand}` });
     }
 
+    if (req.user?.role !== 'Admin') {
+      const allowed = req.user?.brandAccess?.[brand.toLowerCase()];
+      const isMsilCustomer = req.user?.customerCategory === 'MSIL';
+      if (!allowed || (brand.toLowerCase() === 'imada' && isMsilCustomer)) {
+        return res.status(403).json({ success: false, message: 'Access to this brand is restricted for your account.' });
+      }
+    }
+
     const product = await Model.findOne({
       $or: [{ skuCode: req.params.skuCode }, { msilCode: req.params.skuCode }]
     });
@@ -192,6 +236,46 @@ export const createProduct = async (req, res, next) => {
 
     const product = await Model.create(req.body);
     res.status(201).json({ success: true, data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/v1/products/categories
+export const getCategories = async (req, res, next) => {
+  try {
+    const isMsilCustomer =
+      req.user?.role !== 'Admin' && req.user?.customerCategory === 'MSIL';
+
+    let allowedModels = [];
+    if (req.user?.role === 'Admin') {
+      allowedModels = [ProductKoken, ProductBIX, ProductIMADA];
+    } else {
+      if (req.user?.brandAccess?.koken) allowedModels.push(ProductKoken);
+      if (req.user?.brandAccess?.bix)   allowedModels.push(ProductBIX);
+      if (req.user?.brandAccess?.imada && !isMsilCustomer) allowedModels.push(ProductIMADA);
+    }
+
+    const uniqueCategories = new Set();
+    await Promise.all(
+      allowedModels.map(async (model) => {
+        const cats = await model.distinct('category');
+        cats.forEach(c => {
+          if (c) {
+            if (Array.isArray(c)) {
+              c.forEach(sub => sub && uniqueCategories.add(sub.trim()));
+            } else {
+              uniqueCategories.add(String(c).trim());
+            }
+          }
+        });
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: Array.from(uniqueCategories).sort()
+    });
   } catch (error) {
     next(error);
   }

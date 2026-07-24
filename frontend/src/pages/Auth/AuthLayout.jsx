@@ -12,7 +12,7 @@ export const AuthLayout = () => {
             <img src="/logo.avif" alt="Shraddha Impex Logo" className="h-24 w-auto object-contain " />
             <div className="text-center">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">
-                Shraddha<span className="text-primary-600">Impex</span>
+                Shraddha<span style={{ color: "#2786CA" }}>Impex</span>
               </h1>
             </div>
           </div>

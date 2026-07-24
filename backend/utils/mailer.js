@@ -26,17 +26,17 @@ export const sendEmail = async (to, subject, htmlBody) => {
 
   try {
     const info = await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"ERP Portal" <no-reply@example.com>',
+      from: process.env.EMAIL_FROM || '"Shraddha Impex Booking Portal" <no-reply@example.com>',
       to,
       subject,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-          <h2 style="color: #1a5b9e;">ERP Portal Notification</h2>
+          <h2 style="color: #1a5b9e;">Shraddha Impex Booking Portal Notification</h2>
           <div style="border-top: 2px solid #eee; padding-top: 15px; font-size: 14px; line-height: 1.6;">
             ${htmlBody}
           </div>
           <p style="margin-top: 30px; font-size: 12px; color: #777;">
-            This is an automated email from your ERP Portal. Please do not reply directly to this message.
+            This is an automated email from your Shraddha Impex Booking Portal. Please do not reply directly to this message.
           </p>
         </div>
       `,

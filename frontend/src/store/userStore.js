@@ -24,22 +24,6 @@ export const useUserStore = create((set) => ({
     }
   },
 
-  register: async (userData) => {
-    set({ loading: true, error: null });
-    try {
-      const { token } = await usersApi.register(userData);
-      localStorage.setItem('token', token);
-      
-      const user = await usersApi.getCurrentUser();
-      set({ user, loading: false });
-      refreshSocketAuth();
-      return true;
-    } catch (err) {
-      set({ error: err.response?.data?.message || "Registration failed", loading: false });
-      return false;
-    }
-  },
-
   fetchUser: async () => {
     const token = localStorage.getItem('token');
     if (!token) {
